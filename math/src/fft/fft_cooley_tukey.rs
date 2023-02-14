@@ -27,6 +27,18 @@ pub fn cooley_tukey<F: IsField>(
     y
 }
 
+pub fn inverse_cooley_tukey<F: IsField>(
+    coeffs: Vec<FieldElement<F>>,
+    omega: FieldElement<F>,
+    _modulus: u64,
+) -> Vec<FieldElement<F>> {
+    let n = coeffs.len();
+    let inverse_n = FieldElement::from(n as u64).inv();
+    let inverse_omega = inverse_n * omega.inv();
+    assert!(n.is_power_of_two(), "n should be power of two");
+    cooley_tukey(coeffs, inverse_omega, _modulus)
+}
+
 #[cfg(test)]
 mod test {
     use crate::field::fields::u64_prime_field::U64FieldElement;
@@ -44,5 +56,19 @@ mod test {
         let result = cooley_tukey(coeffs, omega, MODULUS);
         let expected = vec![FE::new(10), FE::new(5), FE::new(9), FE::new(0)];
         assert_eq!(result, expected);
+    }
+
+    /// test case generated with <https://www.nayuki.io/page/number-theoretic-transform-integer-dft>
+    #[test]
+    fn test_inverse_cooley_tukey() {
+        let coeffs = vec![FE::new(6), FE::new(0), FE::new(10), FE::new(7)];
+        let omega = FE::from(8);
+
+        let result = cooley_tukey(coeffs.clone(), omega, MODULUS);
+        let expected = vec![FE::new(10), FE::new(5), FE::new(9), FE::new(0)];
+        assert_eq!(result, expected);
+
+        let recovered_coeffs = inverse_cooley_tukey(result, omega, MODULUS);
+        assert_eq!(recovered_coeffs, coeffs);
     }
 }
