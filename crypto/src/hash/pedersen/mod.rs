@@ -36,14 +36,14 @@ where
 
 pub struct Pedersen<E>
 where
-    E: elliptic_curve::short_weierstrass::traits::IsShortWeierstrass,
+    E: IsEllipticCurve,
 {
     parameters: Vec<Vec<FieldElement<E::BaseField>>>,
 }
 
 impl<E> Pedersen<E>
 where
-    E: elliptic_curve::short_weierstrass::traits::IsShortWeierstrass,
+    E: IsEllipticCurve,
 {
     fn create_generators(rng: &mut rand::rngs::ThreadRng) -> Vec<Vec<FieldElement<E::BaseField>>> {
         (0..NUM_WINDOWS)
@@ -121,15 +121,126 @@ fn to_bits(felt: FE) -> Vec<bool> {
 
 #[cfg(test)]
 mod tests {
-    use crate::hash::{pedersen::{FE, Pedersen}, traits::IsCryptoHash};
+    use lambdaworks_math::{field::{fields::u384_prime_field::{IsMontgomeryConfiguration, MontgomeryBackendPrimeField}, element::FieldElement}, unsigned_integer::element::{U384, U256}};
+    use super::*;
+    use crate::hash::{pedersen::{Pedersen}, traits::IsCryptoHash};
+    #[derive(Clone, Debug)]
+    pub struct TestCurve;
+    #[derive(Clone, Debug)]
+    pub struct TestFieldConfig;
+    impl IsMontgomeryConfiguration for TestFieldConfig {
+        const MODULUS: U384 =
+            U384::from("800000000000011000000000000000000000000000000000000000000000001");
+        const MP: u64 = 18446744073709551615u64;
+        const R2: U384 =
+            U384::from("38E5F79873C0A6DF47D84F8363000187545706677FFCC06CC7177D1406DF18E");
+    }
+
+    pub type PedersenTestField = MontgomeryBackendPrimeField<TestFieldConfig>;
+    type TestFieldElement = FieldElement<PedersenTestField>;
+
+    impl IsEllipticCurve for TestCurve {
+        type BaseField = PedersenTestField;
+        type PointRepresentation = AffinePoint;
+    
+        fn generator() -> Self::PointRepresentation {
+            AffinePoint {
+                x: TestFieldElement::new(U384::from("D38D026B7B45BDD9E5D")),
+                y :TestFieldElement::new(U384::from("2643CB179F775C82FA4A")),
+            }
+        }
+    
+        fn create_point_from_affine(
+            x: FieldElement<Self::BaseField>,
+            y: FieldElement<Self::BaseField>,
+        ) -> Self::PointRepresentation {
+            AffinePoint {
+                x,
+                y,
+            }
+        }
+    }
+
+    fn to_bits(felt: TestFieldElement) -> Vec<bool> {
+        let felt_bytes = felt.value().to_bytes_be();
+        let mut bits = Vec::with_capacity(felt_bytes.len() * 8);
+        for byte in felt_bytes {
+            for i in 0..8 {
+                bits.push(byte & (1 << i) != 0);
+            }
+        }
+        bits
+    }
+
+impl IsCryptoHash<PedersenTestField> for Pedersen<TestCurve> {
+    fn new() -> Self {
+        Self {
+            parameters: Self::create_generators(&mut rand::thread_rng()),
+        }
+    }
+
+    fn hash_one(&self, input: TestFieldElement) -> TestFieldElement {
+        // Compute sum of h_i^{m_i} for all i.
+        let bits = to_bits(input);
+        bits.chunks(WINDOW_SIZE)
+            .zip(&self.parameters)
+            .map(|(bits, generator_powers)| {
+                let mut encoded = TestFieldElement::zero();
+                for (bit, base) in bits.iter().zip(generator_powers.iter()) {
+                    if *bit {
+                        encoded += base.clone();
+                    }
+                }
+                encoded
+            })
+            // This last step is the same as doing .sum() but std::iter::Sum is
+            // not implemented for FieldElement yet.
+            .fold(TestFieldElement::zero(), |acc, x| acc + x)
+    }
+
+    fn hash_two(&self, left: TestFieldElement, right: TestFieldElement) -> TestFieldElement {
+        let left_input_bytes = left.value().to_bytes_be()[48-32..].to_vec();
+        let right_input_bytes = right.value().to_bytes_be()[48-32..].to_vec();
+        let mut buffer = vec![0u8; (256) / 8];
+
+        buffer
+            .iter_mut()
+            .zip(left_input_bytes.iter().chain(right_input_bytes.iter()))
+            .for_each(|(b, l_b)| *b = *l_b);
+        for _ in 0..16
+{        buffer.insert(0, 0);
+       }
+              let base_type_value = U384::from_bytes_be(&buffer).unwrap();
+        let new_input_value = PedersenTestField::from_base_type(base_type_value);
+        let new_input = TestFieldElement::from(&new_input_value);
+
+        self.hash_one(new_input)
+    }
+}
+
+    #[derive(Clone, Debug)]
+    pub struct AffinePoint {
+        pub x: TestFieldElement,
+        pub y: TestFieldElement,
+    }
+
+    impl IsGroup for AffinePoint {
+        fn neutral_element() -> Self {
+        todo!()
+    }
+
+        fn operate_with(&self, other: &Self) -> Self {
+        todo!()
+    }
+    }
 
     #[test]
     fn test_pedersen_hash() {
-        let in1 = FE::new_base("03d937c035c878245caf64531a5756109c53068da139362728feb561405371cb");
-        let in2 = FE::new_base("0208a0a10250e382e1e4bbe2880906c2791bf6275695e02fbbc6aeff9cd8b31a");
-        let expected_hash = FE::new_base("030e480bed5fe53fa909cc0f8c4d99b8f9f2c016be4c41e13a4848797979c662");
+        let in1 = TestFieldElement::new(U384::from("03d937c035c878245caf64531a5756109c53068da139362728feb561405371cb"));
+        let in2 = TestFieldElement::new(U384::from("0208a0a10250e382e1e4bbe2880906c2791bf6275695e02fbbc6aeff9cd8b31a"));
+        let expected_hash = TestFieldElement::new(U384::from("030e480bed5fe53fa909cc0f8c4d99b8f9f2c016be4c41e13a4848797979c662"));
 
-        let hasher = Pedersen::new();
+        let hasher:Pedersen<TestCurve> = Pedersen::new();
 
         assert_eq!(hasher.hash_two(in1, in2), expected_hash);
     }
