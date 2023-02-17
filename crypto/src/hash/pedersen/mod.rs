@@ -172,51 +172,51 @@ mod tests {
         bits
     }
 
-impl IsCryptoHash<PedersenTestField> for Pedersen<TestCurve> {
-    fn new() -> Self {
-        Self {
-            parameters: Self::create_generators(&mut rand::thread_rng()),
+    impl IsCryptoHash<PedersenTestField> for Pedersen<TestCurve> {
+        fn new() -> Self {
+            Self {
+                parameters: Self::create_generators(&mut rand::thread_rng()),
+            }
+        }
+
+        fn hash_one(&self, input: TestFieldElement) -> TestFieldElement {
+            // Compute sum of h_i^{m_i} for all i.
+            let bits = to_bits(input);
+            bits.chunks(WINDOW_SIZE)
+                .zip(&self.parameters)
+                .map(|(bits, generator_powers)| {
+                    let mut encoded = TestFieldElement::zero();
+                    for (bit, base) in bits.iter().zip(generator_powers.iter()) {
+                        if *bit {
+                            encoded += base.clone();
+                        }
+                    }
+                    encoded
+                })
+                // This last step is the same as doing .sum() but std::iter::Sum is
+                // not implemented for FieldElement yet.
+                .fold(TestFieldElement::zero(), |acc, x| acc + x)
+        }
+
+        fn hash_two(&self, left: TestFieldElement, right: TestFieldElement) -> TestFieldElement {
+            let left_input_bytes = left.value().to_bytes_be()[48-32..].to_vec();
+            let right_input_bytes = right.value().to_bytes_be()[48-32..].to_vec();
+            let mut buffer = vec![0u8; (256) / 8];
+
+            buffer
+                .iter_mut()
+                .zip(left_input_bytes.iter().chain(right_input_bytes.iter()))
+                .for_each(|(b, l_b)| *b = *l_b);
+            for _ in 0..16 {
+                buffer.insert(0, 0);
+            }
+            let base_type_value = U384::from_bytes_be(&buffer).unwrap();
+            let new_input_value = PedersenTestField::from_base_type(base_type_value);
+            let new_input = TestFieldElement::from(&new_input_value);
+
+            self.hash_one(new_input)
         }
     }
-
-    fn hash_one(&self, input: TestFieldElement) -> TestFieldElement {
-        // Compute sum of h_i^{m_i} for all i.
-        let bits = to_bits(input);
-        bits.chunks(WINDOW_SIZE)
-            .zip(&self.parameters)
-            .map(|(bits, generator_powers)| {
-                let mut encoded = TestFieldElement::zero();
-                for (bit, base) in bits.iter().zip(generator_powers.iter()) {
-                    if *bit {
-                        encoded += base.clone();
-                    }
-                }
-                encoded
-            })
-            // This last step is the same as doing .sum() but std::iter::Sum is
-            // not implemented for FieldElement yet.
-            .fold(TestFieldElement::zero(), |acc, x| acc + x)
-    }
-
-    fn hash_two(&self, left: TestFieldElement, right: TestFieldElement) -> TestFieldElement {
-        let left_input_bytes = left.value().to_bytes_be()[48-32..].to_vec();
-        let right_input_bytes = right.value().to_bytes_be()[48-32..].to_vec();
-        let mut buffer = vec![0u8; (256) / 8];
-
-        buffer
-            .iter_mut()
-            .zip(left_input_bytes.iter().chain(right_input_bytes.iter()))
-            .for_each(|(b, l_b)| *b = *l_b);
-        for _ in 0..16
-{        buffer.insert(0, 0);
-       }
-              let base_type_value = U384::from_bytes_be(&buffer).unwrap();
-        let new_input_value = PedersenTestField::from_base_type(base_type_value);
-        let new_input = TestFieldElement::from(&new_input_value);
-
-        self.hash_one(new_input)
-    }
-}
 
     #[derive(Clone, Debug)]
     pub struct AffinePoint {
@@ -226,12 +226,12 @@ impl IsCryptoHash<PedersenTestField> for Pedersen<TestCurve> {
 
     impl IsGroup for AffinePoint {
         fn neutral_element() -> Self {
-        todo!()
-    }
+            todo!()
+        }
 
         fn operate_with(&self, other: &Self) -> Self {
-        todo!()
-    }
+            todo!()
+        }
     }
 
     #[test]
