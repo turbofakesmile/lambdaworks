@@ -10,7 +10,7 @@ use crate::{
 use super::traits::IsShortWeierstrass;
 
 #[derive(Clone, Debug)]
-pub struct ShortWeierstrassProjectivePoint<E: IsEllipticCurve>(ProjectivePoint<E>);
+pub struct ShortWeierstrassProjectivePoint<E: IsEllipticCurve>(pub ProjectivePoint<E>);
 
 impl<E: IsEllipticCurve> ShortWeierstrassProjectivePoint<E> {
     /// Creates an elliptic curve point giving the projective [x: y: z] coordinates.

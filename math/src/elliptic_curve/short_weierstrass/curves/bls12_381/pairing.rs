@@ -17,6 +17,51 @@ use crate::{
 /// This is equal to the frobenius trace of the BLS12 381 curve minus one.
 const MILLER_LOOP_CONSTANT: u64 = 0xd201000000010000;
 
+fn double_accumulate_line(
+    r: &mut ShortWeierstrassProjectivePoint<BLS12381TwistCurve>,
+    p: &ShortWeierstrassProjectivePoint<BLS12381Curve>,
+    accumulator: &mut FieldElement<Degree12ExtensionField>,
+) {
+    let [x1, y1, z1] = r.coordinates();
+    let [px, py, _] = p.coordinates();
+
+    let two_inv = FieldElement::from(2).inv();
+    let a = &two_inv * x1 * y1;
+    let b = y1 * y1;
+    let c = z1 * z1;
+    let d = &c + &c + &c;
+    let e = &d * BLS12381TwistCurve::b();
+    let e_sq = &e * &e;
+    let f = &e + &e + &e;
+    let g = two_inv * (&b + &f);
+    let y1_plus_z1 = y1 + z1;
+    let h = &y1_plus_z1 * &y1_plus_z1 - (&b + &c);
+
+    let x3 = &a * (&b - &f);
+    let y3 = &g * &g - (&e_sq + &e_sq + &e_sq);
+    let z3 = &b * &h;
+    
+    let [h0, h1] = h.value();
+    let x1_sq = x1 * x1;
+    let x1_sq_3 = &x1_sq + &x1_sq + &x1_sq;
+    let [x1_sq_30, x1_sq_31] = &x1_sq_3.value();
+
+    r.0.value = [x3, y3, z3];
+
+    let g = FieldElement::<Degree12ExtensionField>::new([
+        FieldElement::new([
+            FieldElement::new([-h0 * py, -h1 * py]), 
+            FieldElement::zero(), 
+            FieldElement::zero()]),
+        FieldElement::new([
+            FieldElement::new([x1_sq_30 * px, x1_sq_31 * px]), 
+            e - b, 
+            FieldElement::zero()])
+    ]);
+
+    *accumulator = accumulator.pow(2_u16) * g;
+}
+
 /// Implements the miller loop for the ate pairing of the BLS12 381 curve.
 /// Based on algorithm 9.2, page 212 of the book
 /// "Topics in computational number theory" by W. Bons and K. Lenstra
@@ -36,8 +81,7 @@ fn miller(
     }
 
     for bit in miller_loop_constant_bits[1..].iter() {
-        f = f.pow(2_u64) * line(&r, &r, p);
-        r = r.operate_with(&r).to_affine();
+        double_accumulate_line(&mut r, p, &mut f);
         if *bit {
             f = f * line(&r, q, p);
             r = r.operate_with(q);
@@ -101,8 +145,9 @@ pub fn batch_ate(
         &ShortWeierstrassProjectivePoint<BLS12381TwistCurve>,
     )],
 ) -> FieldElement<Degree12ExtensionField> {
-    let mut result = FieldElement::one();
-    for (p, q) in pairs {
+    let (p0, q0) = pairs[0];
+    let mut result = miller(q0, p0);
+    for (p, q) in pairs.into_iter().skip(1) {
         result = result * miller(q, p);
     }
     final_exponentiation(&result)
@@ -187,6 +232,7 @@ mod tests {
     fn test_line_1() {
         let g1 = BLS12381Curve::generator();
         let g2 = BLS12381TwistCurve::generator();
+        let mut r = g2.clone();
         let expected = Fp12E::from_coefficients(&[
             "8b3f481e3aaa0f1a09e30ed741d8ae4fcf5e095d5d00af600db18cb2c04b3edd03cc744a2888ae40caa232946c5e7e1",
             "0",
@@ -201,7 +247,14 @@ mod tests {
             "0",
             "0"
         ]);
-        assert_eq!(line(&g2, &g2, &g1), expected);
+        let l = line(&g2, &g2, &g1);
+        
+        assert_eq!(&l, &expected);
+
+        let mut f = FieldElement::one();
+        double_accumulate_line(&mut r, &g1, &mut f);
+        assert_eq!(r, g2.operate_with(&g2));
+        assert_eq!(f, l);
     }
 
     #[test]
@@ -228,8 +281,8 @@ mod tests {
 
     #[test]
     fn batch_ate_pairing_bilinearity() {
-        let p = BLS12381Curve::generator().to_affine();
-        let q = BLS12381TwistCurve::generator().to_affine();
+        let p = BLS12381Curve::generator();
+        let q = BLS12381TwistCurve::generator();
         let a = U384::from_u64(11);
         let b = U384::from_u64(93);
 
@@ -241,5 +294,12 @@ mod tests {
             (&p.operate_with_self(a * b).to_affine(), &q.neg()),
         ]);
         assert_eq!(result, FieldElement::one());
+    }
+
+    #[test]
+    fn ate_single() {
+        let p = BLS12381Curve::generator();
+        let q = BLS12381TwistCurve::generator();
+        ate(&p, &q);
     }
 }
