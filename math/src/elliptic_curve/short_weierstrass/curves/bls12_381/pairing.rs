@@ -46,7 +46,6 @@ fn double_accumulate_line(
     let x1_sq_3 = &x1_sq + &x1_sq + &x1_sq;
     let [x1_sq_30, x1_sq_31] = &x1_sq_3.value();
 
-    r.0.value = [x3, y3, z3];
 
     let g = FieldElement::<Degree12ExtensionField>::new([
         FieldElement::new([
@@ -58,7 +57,8 @@ fn double_accumulate_line(
             e - b, 
             FieldElement::zero()])
     ]);
-
+    
+    r.0.value = [x3, y3, z3];
     *accumulator = accumulator.pow(2_u16) * g;
 }
 
@@ -83,11 +83,11 @@ fn miller(
     for bit in miller_loop_constant_bits[1..].iter() {
         double_accumulate_line(&mut r, p, &mut f);
         if *bit {
-            f = f * line(&r, q, p);
-            r = r.operate_with(q);
             if !r.is_neutral_element() {
                 r = r.to_affine();
             }
+            f = f * line(&r, q, p);
+            r = r.operate_with(q);
         }
     }
     f.inv()
@@ -250,11 +250,27 @@ mod tests {
         let l = line(&g2, &g2, &g1);
         
         assert_eq!(&l, &expected);
-
+        let z = FieldElement::new([
+            FieldElement::new([
+                r.coordinates()[2].clone(),
+                FieldElement::zero(),
+                FieldElement::zero()
+            ]),
+            FieldElement::zero()
+        ]);
+        let y = FieldElement::new([
+            FieldElement::new([
+                r.coordinates()[1].clone(),
+                FieldElement::zero(),
+                FieldElement::zero()
+            ]),
+            FieldElement::zero()
+        ]);
         let mut f = FieldElement::one();
         double_accumulate_line(&mut r, &g1, &mut f);
         assert_eq!(r, g2.operate_with(&g2));
-        assert_eq!(f, l);
+
+        assert_eq!(f, - l * z * y * FieldElement::from(2));
     }
 
     #[test]
