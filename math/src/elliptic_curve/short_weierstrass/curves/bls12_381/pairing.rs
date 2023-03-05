@@ -59,7 +59,7 @@ fn double_accumulate_line(
     ]);
     
     r.0.value = [x3, y3, z3];
-    *accumulator = accumulator.pow(2_u16) * g;
+    *accumulator = accumulator.pow(2_u16) * g
 }
 
 /// Implements the miller loop for the ate pairing of the BLS12 381 curve.
