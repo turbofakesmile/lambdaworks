@@ -27,22 +27,25 @@ fn double_accumulate_line(
 
     let two_inv = FieldElement::from(2).inv();
     let a = &two_inv * x1 * y1;
-    let b = y1 * y1;
-    let c = z1 * z1;
+    let b = y1.square();
+    let c = z1.square();
     let d = &c + &c + &c;
-    let e = &d * BLS12381TwistCurve::b();
+    let [d0, d1] = d.value();
+    let ep = FieldElement::new([d0 - d1, d0 + d1]);
+    let ep2 = &ep + &ep;
+    let e = &ep2 + &ep2;
     let e_sq = &e * &e;
     let f = &e + &e + &e;
     let g = two_inv * (&b + &f);
     let y1_plus_z1 = y1 + z1;
-    let h = &y1_plus_z1 * &y1_plus_z1 - (&b + &c);
+    let h = y1_plus_z1.square() - (&b + &c);
 
     let x3 = &a * (&b - &f);
     let y3 = &g * &g - (&e_sq + &e_sq + &e_sq);
     let z3 = &b * &h;
     
     let [h0, h1] = h.value();
-    let x1_sq = x1 * x1;
+    let x1_sq = x1.square();
     let x1_sq_3 = &x1_sq + &x1_sq + &x1_sq;
     let [x1_sq_30, x1_sq_31] = &x1_sq_3.value();
 
@@ -61,7 +64,7 @@ fn double_accumulate_line(
     ]);
     
     r.0.value = [x3, y3, z3];
-    *accumulator = accumulator.pow(2_u16) * g
+    *accumulator = accumulator.square() * g
 }
 
 /// Implements the miller loop for the ate pairing of the BLS12 381 curve.
@@ -152,6 +155,7 @@ pub fn batch_ate(
     for (p, q) in pairs.into_iter().skip(1) {
         result = result * miller(q, p);
     }
+    //FieldElement::zero()
     final_exponentiation(&result)
 }
 
