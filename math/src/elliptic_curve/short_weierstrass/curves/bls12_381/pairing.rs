@@ -49,13 +49,15 @@ fn double_accumulate_line(
 
     let g = FieldElement::<Degree12ExtensionField>::new([
         FieldElement::new([
-            FieldElement::new([-h0 * py, -h1 * py]), 
-            FieldElement::zero(), 
-            FieldElement::zero()]),
-        FieldElement::new([
-            FieldElement::new([x1_sq_30 * px, x1_sq_31 * px]), 
             e - b, 
-            FieldElement::zero()])
+            FieldElement::new([x1_sq_30 * px, x1_sq_31 * px]), 
+            FieldElement::zero(),
+        ]),
+        FieldElement::new([
+            FieldElement::zero(), 
+            FieldElement::new([-h0 * py, -h1 * py]), 
+            FieldElement::zero()
+        ])
     ]);
     
     r.0.value = [x3, y3, z3];
@@ -164,32 +166,56 @@ pub fn line(
         !q.is_neutral_element(),
         "q cannot be the point at infinity."
     );
-    let [px, py] = p.to_fp12_unnormalized();
-    let [rx, ry] = r.to_fp12_unnormalized();
+    let [px, py, _] = p.coordinates();
+    let px = FieldElement::<Degree12ExtensionField>::new([
+        FieldElement::new([
+            px.clone(),
+            FieldElement::zero(),
+            FieldElement::zero()
+        ]),
+        FieldElement::zero()
+    ]);
+    let py = FieldElement::<Degree12ExtensionField>::new([
+        FieldElement::new([
+            py.clone(),
+            FieldElement::zero(),
+            FieldElement::zero()
+        ]),
+        FieldElement::zero()
+    ]);
+    let [rx, ry, _] = r.coordinates();
+    let rx = FieldElement::<Degree12ExtensionField>::new([
+        FieldElement::new([
+            rx.clone(),
+            FieldElement::zero(),
+            FieldElement::zero()
+        ]),
+        FieldElement::zero()
+    ]);
+    let ry = FieldElement::<Degree12ExtensionField>::new([
+        FieldElement::new([
+            ry.clone(),
+            FieldElement::zero(),
+            FieldElement::zero()
+        ]),
+        FieldElement::zero()
+    ]);
     let [qx_fp, qy_fp, _] = q.coordinates().clone();
     let qx = FieldElement::<Degree12ExtensionField>::new([
         FieldElement::new([
-            FieldElement::new([qx_fp, FieldElement::zero()]),
             FieldElement::zero(),
+            FieldElement::new([qx_fp, FieldElement::zero()]),
             FieldElement::zero(),
         ]),
         FieldElement::zero(),
     ]);
     let qy = FieldElement::<Degree12ExtensionField>::new([
+        FieldElement::zero(),
         FieldElement::new([
+            FieldElement::zero(),
             FieldElement::new([qy_fp, FieldElement::zero()]),
             FieldElement::zero(),
-            FieldElement::zero(),
         ]),
-        FieldElement::zero(),
-    ]);
-    let a_of_curve = FieldElement::<Degree12ExtensionField>::new([
-        FieldElement::new([
-            FieldElement::new([BLS12381Curve::a(), FieldElement::zero()]),
-            FieldElement::zero(),
-            FieldElement::zero(),
-        ]),
-        FieldElement::zero(),
     ]);
 
     if p.is_neutral_element() || r.is_neutral_element() {
@@ -209,7 +235,7 @@ pub fn line(
             qy - py - l * (qx - px)
         }
     } else {
-        let numerator = FieldElement::from(3) * &px.pow(2_u16) + a_of_curve;
+        let numerator = FieldElement::from(3) * &px.pow(2_u16);
         let denominator = FieldElement::from(2) * &py;
         if denominator == FieldElement::zero() {
             qx - px
