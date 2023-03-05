@@ -5,7 +5,6 @@ use super::{
 };
 use crate::{
     cyclic_group::IsGroup,
-    elliptic_curve::short_weierstrass::traits::IsShortWeierstrass,
     elliptic_curve::short_weierstrass::{
         curves::bls12_381::field_extension::Degree6ExtensionField,
         point::ShortWeierstrassProjectivePoint,
@@ -37,8 +36,7 @@ fn double_accumulate_line(
     let e_sq = &e * &e;
     let f = &e + &e + &e;
     let g = two_inv * (&b + &f);
-    let y1_plus_z1 = y1 + z1;
-    let h = y1_plus_z1.square() - (&b + &c);
+    let h = (y1 + z1).square() - (&b + &c);
 
     let x3 = &a * (&b - &f);
     let y3 = &g * &g - (&e_sq + &e_sq + &e_sq);
@@ -64,6 +62,7 @@ fn double_accumulate_line(
     ]);
     
     r.0.value = [x3, y3, z3];
+    // (a0 + a2w2 + a4w4 + a1w + a3w3 + a5w5) * (b0 + b2 w2 + b3 w3)
     *accumulator = accumulator.square() * g
 }
 
