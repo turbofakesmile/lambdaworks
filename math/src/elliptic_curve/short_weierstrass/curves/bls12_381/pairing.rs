@@ -7,7 +7,7 @@ use crate::{
     cyclic_group::IsGroup,
     elliptic_curve::short_weierstrass::{
         curves::bls12_381::field_extension::{Degree6ExtensionField, LevelTwoResidue},
-        point::ShortWeierstrassProjectivePoint,
+        point::ShortWeierstrassProjectivePoint, traits::IsShortWeierstrass,
     },
     field::{element::FieldElement, extensions::cubic::{CubicExtensionField, HasCubicNonResidue}},
     unsigned_integer::element::{UnsignedInteger, U384},
@@ -15,7 +15,6 @@ use crate::{
 
 /// This is equal to the frobenius trace of the BLS12 381 curve minus one.
 const MILLER_LOOP_CONSTANT: u64 = 0xd201000000010000;
-const TWO_INV_MOD_P: U384 = U384::from("d0088f51cbff34d258dd3db21a5d66bb23ba5c279c2895fb39869507b587b120f55ffff58a9ffffdcff7fffffffd556");
 
 fn double_accumulate_line(
     r: &mut ShortWeierstrassProjectivePoint<BLS12381TwistCurve>,
@@ -24,52 +23,47 @@ fn double_accumulate_line(
 ) {
     let [x1, y1, z1] = r.coordinates();
     let [px, py, _] = p.coordinates();
-
-    let two_inv = FieldElement::new([FieldElement::new(TWO_INV_MOD_P), FieldElement::zero()]);
+    let residue = LevelTwoResidue::residue();
+    let two_inv = FieldElement::<Degree2ExtensionField>::new_base("d0088f51cbff34d258dd3db21a5d66bb23ba5c279c2895fb39869507b587b120f55ffff58a9ffffdcff7fffffffd556");
+    
     let a = &two_inv * x1 * y1;
     let b = y1.square();
     let c = z1.square();
     let d = &c + &c + &c;
-    let [d0, d1] = d.value();
-    let ep = FieldElement::new([d0 - d1, d0 + d1]);
-    let ep2 = &ep + &ep;
-    let e = &ep2 + &ep2;
-    let e_sq = &e * &e;
-    let f = &e + &e + &e;
+    let e = BLS12381TwistCurve::b() * d;
+    let f = FieldElement::from(3) * &e;
     let g = two_inv * (&b + &f);
     let h = (y1 + z1).square() - (&b + &c);
 
     let x3 = &a * (&b - &f);
-    let y3 = &g * &g - (&e_sq + &e_sq + &e_sq);
+    let y3 = g.square() - (FieldElement::from(3) * e.square());
     let z3 = &b * &h;
     
     let [h0, h1] = h.value();
-    let x1_sq = x1.square();
-    let x1_sq_3 = &x1_sq + &x1_sq + &x1_sq;
-    let [x1_sq_30, x1_sq_31] = &x1_sq_3.value();
-
-    let b0 = e - b;
-    let b2 = FieldElement::new([x1_sq_30 * px, x1_sq_31 * px]);
-    let b3 = FieldElement::new([-h0 * py, -h1 * py]);
+    let x1_sq_3 = FieldElement::from(3) * x1.square();
+    let [x1_sq_30, x1_sq_31] = x1_sq_3.value();
     
     r.0.value = [x3, y3, z3];
-    // (a0 + a2w2 + a4w4 + a1w + a3w3 + a5w5) * (b0 + b2 w2 + b3 w3)
-    // (a0b0 + (a3b3 + a4b2) r) w0 + (a1b0 + (a4b3 + a5b2) r) w
-    // (a2b0 + (a5b3 + a6b2) r) w2 + (a3b0 + (a0b3 + a1b2) r) w3
-    // (a4b0 + (a1b3 + a2b2) r) w4 + (a5b0 + (a2b3 + a3b2) r) w5
+
+    // (a0 + a2w2 + a4w4 + a1w + a3w3 + a5w5) * (b0 + b2 w2 + b3 w3) = 
+    // (a0b0 + r (a3b3 + a4b2)) w0 + (a1b0 + r (a4b3 + a5b2)) w
+    // (a2b0 + r  a5b3 + a0b2 ) w2 + (a3b0 + a0b3 + a1b2    ) w3
+    // (a4b0 +    a1b3 + a2b2 ) w4 + (a5b0 + a2b3 + a3b2    ) w5
     let accumulator_sq = accumulator.square();
     let [x, y] = accumulator_sq.value();
     let [a0, a2, a4] = x.value();
     let [a1, a3, a5] = y.value();
-    let r = LevelTwoResidue::residue();
+    let b0 = e - b;
+    let b2 = FieldElement::new([x1_sq_30 * px, x1_sq_31 * px]);
+    let b3 = FieldElement::new([-h0 * py, -h1 * py]);
     *accumulator = FieldElement::new([
         FieldElement::new([
-            a0 * &b0 + &r * (a3 * &b3 + a4 * &b2), // w0
-            a2 * &b0 + &r * a5 * &b3 + a0 * &b2, // w2
+            a0 * &b0 + &residue * (a3 * &b3 + a4 * &b2), // w0
+            a2 * &b0 + &residue * a5 * &b3 + a0 * &b2, // w2
             a4 * &b0 + a1 * &b3 + a2 * &b2, // w4
         ]),
         FieldElement::new([
-            a1 * &b0 + &r * (a4 * &b3 + a5 * &b2), // w1
+            a1 * &b0 + &residue * (a4 * &b3 + a5 * &b2), // w1
             a3 * &b0 + a0 * &b3 + a1 * &b2, // w3
             a5 * &b0 + a2 * &b3 + a3 * &b2, // w5
         ]),
