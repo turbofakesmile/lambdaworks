@@ -10,11 +10,12 @@ use crate::{
         point::ShortWeierstrassProjectivePoint,
     },
     field::{element::FieldElement, extensions::cubic::{CubicExtensionField, HasCubicNonResidue}},
-    unsigned_integer::element::UnsignedInteger,
+    unsigned_integer::element::{UnsignedInteger, U384},
 };
 
 /// This is equal to the frobenius trace of the BLS12 381 curve minus one.
 const MILLER_LOOP_CONSTANT: u64 = 0xd201000000010000;
+const TWO_INV_MOD_P: U384 = U384::from("d0088f51cbff34d258dd3db21a5d66bb23ba5c279c2895fb39869507b587b120f55ffff58a9ffffdcff7fffffffd556");
 
 fn double_accumulate_line(
     r: &mut ShortWeierstrassProjectivePoint<BLS12381TwistCurve>,
@@ -24,7 +25,7 @@ fn double_accumulate_line(
     let [x1, y1, z1] = r.coordinates();
     let [px, py, _] = p.coordinates();
 
-    let two_inv = FieldElement::from(2).inv();
+    let two_inv = FieldElement::new([FieldElement::new(TWO_INV_MOD_P), FieldElement::zero()]);
     let a = &two_inv * x1 * y1;
     let b = y1.square();
     let c = z1.square();
@@ -163,8 +164,8 @@ pub fn batch_ate(
     for (p, q) in pairs.into_iter().skip(1) {
         result = result * miller(q, p);
     }
-    FieldElement::zero()
-    //final_exponentiation(&result)
+    //FieldElement::zero()
+    final_exponentiation(&result)
 }
 
 /// Evaluates the line between points `p` and `r` at point `q`
@@ -351,9 +352,9 @@ mod tests {
     }
 
     #[test]
-    fn ate_single() {
+    fn miller_single() {
         let p = BLS12381Curve::generator();
         let q = BLS12381TwistCurve::generator();
-        ate(&p, &q);
+        miller(&q, &p);
     }
 }
