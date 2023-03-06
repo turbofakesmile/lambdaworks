@@ -6,10 +6,10 @@ use super::{
 use crate::{
     cyclic_group::IsGroup,
     elliptic_curve::short_weierstrass::{
-        curves::bls12_381::field_extension::Degree6ExtensionField,
+        curves::bls12_381::field_extension::{Degree6ExtensionField, LevelTwoResidue},
         point::ShortWeierstrassProjectivePoint,
     },
-    field::element::FieldElement,
+    field::{element::FieldElement, extensions::cubic::{CubicExtensionField, HasCubicNonResidue}},
     unsigned_integer::element::UnsignedInteger,
 };
 
@@ -47,23 +47,32 @@ fn double_accumulate_line(
     let x1_sq_3 = &x1_sq + &x1_sq + &x1_sq;
     let [x1_sq_30, x1_sq_31] = &x1_sq_3.value();
 
-
-    let g = FieldElement::<Degree12ExtensionField>::new([
-        FieldElement::new([
-            e - b, 
-            FieldElement::new([x1_sq_30 * px, x1_sq_31 * px]), 
-            FieldElement::zero(),
-        ]),
-        FieldElement::new([
-            FieldElement::zero(), 
-            FieldElement::new([-h0 * py, -h1 * py]), 
-            FieldElement::zero()
-        ])
-    ]);
+    let b0 = e - b;
+    let b2 = FieldElement::new([x1_sq_30 * px, x1_sq_31 * px]);
+    let b3 = FieldElement::new([-h0 * py, -h1 * py]);
     
     r.0.value = [x3, y3, z3];
     // (a0 + a2w2 + a4w4 + a1w + a3w3 + a5w5) * (b0 + b2 w2 + b3 w3)
-    *accumulator = accumulator.square() * g
+    // (a0b0 + (a3b3 + a4b2) r) w0 + (a1b0 + (a4b3 + a5b2) r) w
+    // (a2b0 + (a5b3 + a6b2) r) w2 + (a3b0 + (a0b3 + a1b2) r) w3
+    // (a4b0 + (a1b3 + a2b2) r) w4 + (a5b0 + (a2b3 + a3b2) r) w5
+    let accumulator_sq = accumulator.square();
+    let [x, y] = accumulator_sq.value();
+    let [a0, a2, a4] = x.value();
+    let [a1, a3, a5] = y.value();
+    let r = LevelTwoResidue::residue();
+    *accumulator = FieldElement::new([
+        FieldElement::new([
+            a0 * &b0 + &r * (a3 * &b3 + a4 * &b2), // w0
+            a2 * &b0 + &r * a5 * &b3 + a0 * &b2, // w2
+            a4 * &b0 + a1 * &b3 + a2 * &b2, // w4
+        ]),
+        FieldElement::new([
+            a1 * &b0 + &r * (a4 * &b3 + a5 * &b2), // w1
+            a3 * &b0 + a0 * &b3 + a1 * &b2, // w3
+            a5 * &b0 + a2 * &b3 + a3 * &b2, // w5
+        ]),
+    ]);
 }
 
 /// Implements the miller loop for the ate pairing of the BLS12 381 curve.
@@ -154,8 +163,8 @@ pub fn batch_ate(
     for (p, q) in pairs.into_iter().skip(1) {
         result = result * miller(q, p);
     }
-    //FieldElement::zero()
-    final_exponentiation(&result)
+    FieldElement::zero()
+    //final_exponentiation(&result)
 }
 
 /// Evaluates the line between points `p` and `r` at point `q`
