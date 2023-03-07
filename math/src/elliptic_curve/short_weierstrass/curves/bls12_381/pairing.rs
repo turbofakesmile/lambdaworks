@@ -6,7 +6,8 @@ use super::{
 use crate::{
     elliptic_curve::short_weierstrass::{
         curves::bls12_381::field_extension::{Degree6ExtensionField, LevelTwoResidue},
-        point::ShortWeierstrassProjectivePoint, traits::IsShortWeierstrass,
+        point::ShortWeierstrassProjectivePoint,
+        traits::IsShortWeierstrass,
     },
     field::{element::FieldElement, extensions::cubic::HasCubicNonResidue},
     unsigned_integer::element::UnsignedInteger,
@@ -24,7 +25,7 @@ fn double_accumulate_line(
     let [px, py, _] = p.coordinates();
     let residue = LevelTwoResidue::residue();
     let two_inv = FieldElement::<Degree2ExtensionField>::new_base("d0088f51cbff34d258dd3db21a5d66bb23ba5c279c2895fb39869507b587b120f55ffff58a9ffffdcff7fffffffd556");
-    
+
     let a = &two_inv * x1 * y1;
     let b = y1.square();
     let c = z1.square();
@@ -37,14 +38,14 @@ fn double_accumulate_line(
     let x3 = &a * (&b - &f);
     let y3 = g.square() - (FieldElement::from(3) * e.square());
     let z3 = &b * &h;
-    
+
     let [h0, h1] = h.value();
     let x1_sq_3 = FieldElement::from(3) * x1.square();
     let [x1_sq_30, x1_sq_31] = x1_sq_3.value();
-    
+
     t.0.value = [x3, y3, z3];
 
-    // (a0 + a2w2 + a4w4 + a1w + a3w3 + a5w5) * (b0 + b2 w2 + b3 w3) = 
+    // (a0 + a2w2 + a4w4 + a1w + a3w3 + a5w5) * (b0 + b2 w2 + b3 w3) =
     // (a0b0 + r (a3b3 + a4b2)) w0 + (a1b0 + r (a4b3 + a5b2)) w
     // (a2b0 + r  a5b3 + a0b2 ) w2 + (a3b0 + a0b3 + a1b2    ) w3
     // (a4b0 +    a1b3 + a2b2 ) w4 + (a5b0 + a2b3 + a3b2    ) w5
@@ -58,13 +59,13 @@ fn double_accumulate_line(
     *accumulator = FieldElement::new([
         FieldElement::new([
             a0 * &b0 + &residue * (a3 * &b3 + a4 * &b2), // w0
-            a2 * &b0 + &residue * a5 * &b3 + a0 * &b2, // w2
-            a4 * &b0 + a1 * &b3 + a2 * &b2, // w4
+            a2 * &b0 + &residue * a5 * &b3 + a0 * &b2,   // w2
+            a4 * &b0 + a1 * &b3 + a2 * &b2,              // w4
         ]),
         FieldElement::new([
             a1 * &b0 + &residue * (a4 * &b3 + a5 * &b2), // w1
-            a3 * &b0 + a0 * &b3 + a1 * &b2, // w3
-            a5 * &b0 + a2 * &b3 + a3 * &b2, // w5
+            a3 * &b0 + a0 * &b3 + a1 * &b2,              // w3
+            a5 * &b0 + a2 * &b3 + a3 * &b2,              // w5
         ]),
     ]);
 }
@@ -90,7 +91,7 @@ fn add_accumulate_line(
     let g = x1 * d;
     let h = &e + f - FieldElement::from(2) * &g;
     let i = y1 * &e;
-    
+
     let x3 = &lambda * &h;
     let y3 = &theta * (g - h) - i;
     let z3 = z1 * e;
@@ -109,13 +110,13 @@ fn add_accumulate_line(
     *accumulator = FieldElement::new([
         FieldElement::new([
             a0 * &b0 + &residue * (a3 * &b3 + a4 * &b2), // w0
-            a2 * &b0 + &residue * a5 * &b3 + a0 * &b2, // w2
-            a4 * &b0 + a1 * &b3 + a2 * &b2, // w4
+            a2 * &b0 + &residue * a5 * &b3 + a0 * &b2,   // w2
+            a4 * &b0 + a1 * &b3 + a2 * &b2,              // w4
         ]),
         FieldElement::new([
             a1 * &b0 + &residue * (a4 * &b3 + a5 * &b2), // w1
-            a3 * &b0 + a0 * &b3 + a1 * &b2, // w3
-            a5 * &b0 + a2 * &b3 + a3 * &b2, // w5
+            a3 * &b0 + a0 * &b3 + a1 * &b2,              // w3
+            a5 * &b0 + a2 * &b3 + a3 * &b2,              // w5
         ]),
     ]);
 }
@@ -200,7 +201,7 @@ pub fn batch_ate(
 ) -> FieldElement<Degree12ExtensionField> {
     let (p0, q0) = pairs[0];
     let mut result = miller(q0, p0);
-    for (p, q) in pairs.into_iter().skip(1) {
+    for (p, q) in pairs.iter().skip(1) {
         result = result * miller(q, p);
     }
     //FieldElement::zero()
@@ -209,23 +210,23 @@ pub fn batch_ate(
 
 #[cfg(test)]
 mod tests {
-    use crate::{elliptic_curve::traits::IsEllipticCurve, unsigned_integer::element::U384, cyclic_group::IsGroup};
+    use crate::{
+        cyclic_group::IsGroup, elliptic_curve::traits::IsEllipticCurve,
+        unsigned_integer::element::U384,
+    };
 
     use super::*;
-
-    type Fp12E = FieldElement<Degree12ExtensionField>;
 
     #[test]
     fn test_line_1() {
         let g1 = BLS12381Curve::generator();
         let g2 = BLS12381TwistCurve::generator();
         let mut r = g2.clone();
-        
+
         let mut f = FieldElement::one();
         double_accumulate_line(&mut r, &g1, &mut f);
         assert_eq!(r, g2.operate_with(&g2));
     }
-
 
     #[test]
     fn batch_ate_pairing_bilinearity() {
@@ -239,7 +240,10 @@ mod tests {
                 &p.operate_with_self(a).to_affine(),
                 &q.operate_with_self(b).to_affine(),
             ),
-            (&p.operate_with_self(a * b).to_affine(), &q.neg().to_affine()),
+            (
+                &p.operate_with_self(a * b).to_affine(),
+                &q.neg().to_affine(),
+            ),
         ]);
         assert_eq!(result, FieldElement::one());
     }

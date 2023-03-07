@@ -118,7 +118,6 @@ where
 }
 
 impl<Q: Clone + Debug + HasQuadraticNonResidue> FieldElement<QuadraticExtensionField<Q>> {
-
     pub fn square(&self) -> Self {
         let [a0, a1] = self.value();
         let v0 = a0 * a1;
@@ -127,7 +126,6 @@ impl<Q: Clone + Debug + HasQuadraticNonResidue> FieldElement<QuadraticExtensionF
         Self::new([c0, c1])
     }
 }
-
 
 #[cfg(test)]
 mod tests {

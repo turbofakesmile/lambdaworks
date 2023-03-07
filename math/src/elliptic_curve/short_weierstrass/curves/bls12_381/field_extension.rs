@@ -4,7 +4,8 @@ use crate::field::{
         cubic::{CubicExtensionField, HasCubicNonResidue},
         quadratic::{HasQuadraticNonResidue, QuadraticExtensionField},
     },
-    fields::u384_prime_field::{IsMontgomeryConfiguration, MontgomeryBackendPrimeField}, traits::IsField,
+    fields::u384_prime_field::{IsMontgomeryConfiguration, MontgomeryBackendPrimeField},
+    traits::IsField,
 };
 use crate::unsigned_integer::element::U384;
 
@@ -23,15 +24,11 @@ pub type BLS12381PrimeField = MontgomeryBackendPrimeField<BLS12381FieldConfig>;
 #[derive(Clone, Debug)]
 pub struct Degree2ExtensionField;
 
-impl IsField for Degree2ExtensionField
-{
+impl IsField for Degree2ExtensionField {
     type BaseType = [FieldElement<BLS12381PrimeField>; 2];
 
     /// Returns the component wise addition of `a` and `b`
-    fn add(
-        a: &Self::BaseType,
-        b: &Self::BaseType,
-    ) -> Self::BaseType {
+    fn add(a: &Self::BaseType, b: &Self::BaseType) -> Self::BaseType {
         [&a[0] + &b[0], &a[1] + &b[1]]
     }
 
@@ -39,10 +36,7 @@ impl IsField for Degree2ExtensionField
     /// equation:
     /// (a0 + a1 * t) * (b0 + b1 * t) = a0 * b0 + a1 * b1 * Self::residue() + (a0 * b1 + a1 * b0) * t
     /// where `t.pow(2)` equals `Q::residue()`.
-    fn mul(
-        a: &Self::BaseType,
-        b: &Self::BaseType,
-    ) -> Self::BaseType {
+    fn mul(a: &Self::BaseType, b: &Self::BaseType) -> Self::BaseType {
         let a0b0 = &a[0] * &b[0];
         let a1b1 = &a[1] * &b[1];
         let z = (&a[0] + &a[1]) * (&b[0] + &b[1]);
@@ -50,10 +44,7 @@ impl IsField for Degree2ExtensionField
     }
 
     /// Returns the component wise subtraction of `a` and `b`
-    fn sub(
-        a: &Self::BaseType,
-        b: &Self::BaseType,
-    ) -> Self::BaseType {
+    fn sub(a: &Self::BaseType, b: &Self::BaseType) -> Self::BaseType {
         [&a[0] - &b[0], &a[1] - &b[1]]
     }
 
@@ -70,10 +61,7 @@ impl IsField for Degree2ExtensionField
     }
 
     /// Returns the division of `a` and `b`
-    fn div(
-        a: &Self::BaseType,
-        b: &Self::BaseType,
-    ) -> Self::BaseType {
+    fn div(a: &Self::BaseType, b: &Self::BaseType) -> Self::BaseType {
         Self::mul(a, &Self::inv(b))
     }
 
@@ -110,12 +98,11 @@ impl FieldElement<Degree2ExtensionField> {
     pub fn square(&self) -> Self {
         let [a0, a1] = self.value();
         let v0 = a0 * a1;
-        let c0 = (a0 + a1) * (a0  - a1);
+        let c0 = (a0 + a1) * (a0 - a1);
         let c1 = &v0 + &v0;
         Self::new([c0, c1])
     }
 }
-
 
 ///////////////
 #[derive(Debug, Clone)]
@@ -126,7 +113,7 @@ impl HasCubicNonResidue for LevelTwoResidue {
     fn residue() -> FieldElement<Degree2ExtensionField> {
         FieldElement::new([
             FieldElement::new(U384::from("1")),
-            FieldElement::new(U384::from("1"))
+            FieldElement::new(U384::from("1")),
         ])
     }
 }
@@ -240,9 +227,9 @@ mod tests {
             "c",
             "0",
             "c"]);
-            assert_eq!(element_ones.pow(2_u16), element_ones_squared);
-            assert_eq!(element_ones.square(), element_ones_squared);
-        }
+        assert_eq!(element_ones.pow(2_u16), element_ones_squared);
+        assert_eq!(element_ones.square(), element_ones_squared);
+    }
 
     #[test]
     fn element_squared_2() {
@@ -265,7 +252,7 @@ mod tests {
         assert_eq!(element_sequence.pow(2_u16), element_sequence_squared);
         assert_eq!(element_sequence.square(), element_sequence_squared);
     }
-    
+
     #[test]
     fn to_fp12_unnormalized_computes_correctly() {
         let g = BLS12381TwistCurve::generator();
