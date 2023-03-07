@@ -4,13 +4,12 @@ use super::{
     twist::BLS12381TwistCurve,
 };
 use crate::{
-    cyclic_group::IsGroup,
     elliptic_curve::short_weierstrass::{
         curves::bls12_381::field_extension::{Degree6ExtensionField, LevelTwoResidue},
         point::ShortWeierstrassProjectivePoint, traits::IsShortWeierstrass,
     },
-    field::{element::FieldElement, extensions::cubic::{CubicExtensionField, HasCubicNonResidue}},
-    unsigned_integer::element::{UnsignedInteger, U384},
+    field::{element::FieldElement, extensions::cubic::HasCubicNonResidue},
+    unsigned_integer::element::UnsignedInteger,
 };
 
 /// This is equal to the frobenius trace of the BLS12 381 curve minus one.
@@ -210,7 +209,7 @@ pub fn batch_ate(
 
 #[cfg(test)]
 mod tests {
-    use crate::{elliptic_curve::traits::IsEllipticCurve, unsigned_integer::element::U384};
+    use crate::{elliptic_curve::traits::IsEllipticCurve, unsigned_integer::element::U384, cyclic_group::IsGroup};
 
     use super::*;
 
