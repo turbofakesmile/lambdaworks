@@ -218,14 +218,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_line_1() {
+    fn test_double_accumulate_line_doubles_point_correctly() {
         let g1 = BLS12381Curve::generator();
         let g2 = BLS12381TwistCurve::generator();
         let mut r = g2.clone();
-
         let mut f = FieldElement::one();
         double_accumulate_line(&mut r, &g1, &mut f);
         assert_eq!(r, g2.operate_with(&g2));
+    }
+
+    #[test]
+    fn test_add_accumulate_line_adds_points_correctly() {
+        let g1 = BLS12381Curve::generator();
+        let g = BLS12381TwistCurve::generator();
+        let a: u64 = 12;
+        let b: u64 = 23;
+        let g2 = g.operate_with_self(a).to_affine();
+        let g3 = g.operate_with_self(b).to_affine();
+        let expected = g.operate_with_self(a + b);
+        let mut r = g2.clone();
+        let mut f = FieldElement::one();
+        add_accumulate_line(&mut r, &g3, &g1, &mut f);
+        assert_eq!(r, expected);
     }
 
     #[test]
