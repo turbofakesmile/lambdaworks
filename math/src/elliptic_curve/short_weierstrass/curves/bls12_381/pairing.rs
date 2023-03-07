@@ -78,6 +78,7 @@ fn add_accumulate_line(
     let [x1, y1, z1] = t.coordinates();
     let [x2, y2, _] = q.coordinates();
     let [px, py, _] = p.coordinates();
+    let residue = LevelTwoResidue::residue();
 
     let a = y2 * z1;
     let b = x2 * z1;
@@ -101,21 +102,25 @@ fn add_accumulate_line(
 
     let [lambda0, lambda1] = lambda.value();
     let [theta0, theta1] = theta.value();
-    let g = FieldElement::new([
+
+    let [x, y] = accumulator.value();
+    let [a0, a2, a4] = x.value();
+    let [a1, a3, a5] = y.value();
+    let b0 = -(lambda.clone() * y2 - theta.clone() * x2);
+    let b2 = FieldElement::new([-theta0 * px, -theta1 * px]);
+    let b3 = FieldElement::new([lambda0 * py, lambda1 * py]);
+    *accumulator = FieldElement::new([
         FieldElement::new([
-            -(lambda.clone() * y2 - theta.clone() * x2),
-            FieldElement::new([-theta0 * px, -theta1 * px]),
-            FieldElement::zero(),
+            a0 * &b0 + &residue * (a3 * &b3 + a4 * &b2), // w0
+            a2 * &b0 + &residue * a5 * &b3 + a0 * &b2, // w2
+            a4 * &b0 + a1 * &b3 + a2 * &b2, // w4
         ]),
         FieldElement::new([
-            FieldElement::zero(),
-            FieldElement::new([lambda0 * py, lambda1 * py]),
-            FieldElement::zero(),
-        ])
+            a1 * &b0 + &residue * (a4 * &b3 + a5 * &b2), // w1
+            a3 * &b0 + a0 * &b3 + a1 * &b2, // w3
+            a5 * &b0 + a2 * &b3 + a3 * &b2, // w5
+        ]),
     ]);
-
-    *accumulator = accumulator.clone() * g;
-
 }
 /// Implements the miller loop for the ate pairing of the BLS12 381 curve.
 /// Based on algorithm 9.2, page 212 of the book
