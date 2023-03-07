@@ -91,12 +91,10 @@ fn add_accumulate_line(
     let g = x1 * d;
     let h = &e + f - FieldElement::from(2) * &g;
     let i = y1 * &e;
-    let j = &theta * x2 - &lambda * y2;
     
     let x3 = &lambda * &h;
     let y3 = &theta * (g - h) - i;
     let z3 = z1 * e;
-    let tclone = t.clone();
 
     t.0.value = [x3, y3, z3];
 
@@ -106,7 +104,7 @@ fn add_accumulate_line(
     let [x, y] = accumulator.value();
     let [a0, a2, a4] = x.value();
     let [a1, a3, a5] = y.value();
-    let b0 = -(lambda.clone() * y2 - theta.clone() * x2);
+    let b0 = -lambda.clone() * y2 + theta.clone() * x2;
     let b2 = FieldElement::new([-theta0 * px, -theta1 * px]);
     let b3 = FieldElement::new([lambda0 * py, lambda1 * py]);
     *accumulator = FieldElement::new([
