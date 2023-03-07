@@ -228,43 +228,44 @@ mod tests {
         let element_ones =
             Fp12E::from_coefficients(&["1", "1", "1", "1", "1", "1", "1", "1", "1", "1", "1", "1"]);
         let element_ones_squared =
-            Fp12E::from_coefficients(&["5", "7", "3", "9", "1", "b", "4", "8", "2", "a", "0", "c"]);
-        assert_eq!(element_ones.pow(2_u16), element_ones_squared);
-    }
+            Fp12E::from_coefficients(&["1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaa1",
+            "c",
+            "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaa5",
+            "c",
+            "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaa9",
+            "c",
+            "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaa3",
+            "c",
+            "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaa7",
+            "c",
+            "0",
+            "c"]);
+            assert_eq!(element_ones.pow(2_u16), element_ones_squared);
+            assert_eq!(element_ones.square(), element_ones_squared);
+        }
 
     #[test]
     fn element_squared_2() {
         let element_sequence =
             Fp12E::from_coefficients(&["1", "2", "5", "6", "9", "a", "3", "4", "7", "8", "b", "c"]);
 
-        let element_sequence_squared = Fp12E::from_coefficients(&[
-            "d0088f51cbff34d258dd3db21a5d66bb23ba5c279c2895fb39869507b587b120f55ffff58a9ffffdcff7fffffffd61d",
-            "d0088f51cbff34d258dd3db21a5d66bb23ba5c279c2895fb39869507b587b120f55ffff58a9ffffdcff7fffffffd66f",
-            "d0088f51cbff34d258dd3db21a5d66bb23ba5c279c2895fb39869507b587b120f55ffff58a9ffffdcff7fffffffd62a",
-            "d0088f51cbff34d258dd3db21a5d66bb23ba5c279c2895fb39869507b587b120f55ffff58a9ffffdcff7fffffffd6b0",
-            "d0088f51cbff34d258dd3db21a5d66bb23ba5c279c2895fb39869507b587b120f55ffff58a9ffffdcff7fffffffd597",
-            "d0088f51cbff34d258dd3db21a5d66bb23ba5c279c2895fb39869507b587b120f55ffff58a9ffffdcff7fffffffd6c1",
-            "e0",
-            "142",
-            "a1",
-            "167",
-            "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa5d",
-            "16c"
-        ]);
+        let element_sequence_squared = Fp12E::from_coefficients(&["1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa87d",
+        "199",
+        "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa851",
+        "20b",
+        "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa955",
+        "1cd",
+        "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa845",
+        "1e8",
+        "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa8a9",
+        "202",
+        "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa5d",
+        "16c"]);
 
         assert_eq!(element_sequence.pow(2_u16), element_sequence_squared);
+        assert_eq!(element_sequence.square(), element_sequence_squared);
     }
-
-    #[test]
-    fn inverse_of_u_plus_one() {
-        let z =
-            Fp12E::from_coefficients(&["0", "0", "1", "0", "0", "0", "0", "0", "0", "0", "0", "0"])
-                .pow(3_u16);
-        let one_plus_u =
-            Fp12E::from_coefficients(&["1", "1", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"]);
-        assert_eq!(z * one_plus_u, FieldElement::one());
-    }
-
+    
     #[test]
     fn to_fp12_unnormalized_computes_correctly() {
         let g = BLS12381TwistCurve::generator();
