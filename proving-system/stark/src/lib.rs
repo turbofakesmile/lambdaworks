@@ -94,18 +94,21 @@ pub fn prove(trace: &[FE], proof_config: &ProofConfig) -> StarkProof {
     )
     .unwrap();
 
-    let trace_roots_of_unity = generate_roots_of_unity_coset(1, &trace_primitive_root);
-
     let lde_primitive_root = PrimeField::get_primitive_root_of_unity(
         ORDER_OF_ROOTS_OF_UNITY_FOR_LDE.trailing_zeros() as u64,
     )
     .unwrap();
     let lde_roots_of_unity_coset = generate_roots_of_unity_coset(COSET_OFFSET, &lde_primitive_root);
 
-    let trace_poly = Polynomial::interpolate(&trace_roots_of_unity, trace);
+    let trace_poly = Polynomial::interpolate_fft(trace).unwrap();
 
     // * Do Reed-Solomon on the trace and composition polynomials using some blowup factor
-    let trace_poly_lde = trace_poly.evaluate_slice(lde_roots_of_unity_coset.as_slice());
+    let trace_poly_lde = trace_poly
+        .evaluate_offset_fft(
+            &COSET_OFFSET.into(),
+            ORDER_OF_ROOTS_OF_UNITY_FOR_LDE / ORDER_OF_ROOTS_OF_UNITY_TRACE,
+        )
+        .unwrap();
 
     // * Commit to both polynomials using a Merkle Tree
     let trace_poly_lde_merkle_tree = FriMerkleTree::build(trace_poly_lde.as_slice());

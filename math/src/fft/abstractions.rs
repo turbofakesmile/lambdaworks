@@ -47,6 +47,7 @@ pub fn fft<F: IsTwoAdicField>(
 pub fn inverse_fft<F: IsTwoAdicField>(
     coeffs: &[FieldElement<F>],
 ) -> Result<Vec<FieldElement<F>>, FFTError> {
+    println!("coeffs: {:?}", coeffs.len());
     let order = log2(coeffs.len())?;
     let twiddles = F::get_twiddles(order, RootsConfig::BitReverseInversed)?;
 
