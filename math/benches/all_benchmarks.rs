@@ -4,7 +4,6 @@ mod benchmarks;
 
 fn run_all_benchmarks(c: &mut Criterion) {
     benchmarks::field::u64_benchmark(c);
-    benchmarks::polynomial::polynomial_benchmark(c);
     benchmarks::fft::fft_benchmarks(c);
 }
 
