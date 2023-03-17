@@ -1,6 +1,6 @@
 pub mod constraints;
 pub mod fri;
-//pub mod prover;
+pub mod prover;
 pub mod utils;
 pub mod verifier;
 

@@ -3,18 +3,14 @@ use super::fri::fri_decommit::FriDecommitment;
 use super::utils::compute_zerofier;
 use super::utils::{
     compute_boundary_quotient_ood_evaluation, compute_transition_quotient_ood_evaluation,
-    generate_primitive_root
+    generate_primitive_root,
 };
 use super::{
-    transcript_to_field, transcript_to_usize, StarkProof,
-    StarkQueryProof, COSET_OFFSET, FE, ORDER_OF_ROOTS_OF_UNITY_FOR_LDE,
-    ORDER_OF_ROOTS_OF_UNITY_TRACE,
+    transcript_to_field, transcript_to_usize, StarkProof, StarkQueryProof, COSET_OFFSET, FE,
+    ORDER_OF_ROOTS_OF_UNITY_FOR_LDE, ORDER_OF_ROOTS_OF_UNITY_TRACE,
 };
 use lambdaworks_crypto::fiat_shamir::transcript::Transcript;
-use lambdaworks_math::{
-    traits::ByteConversion,
-    unsigned_integer::element::U384,
-};
+use lambdaworks_math::{traits::ByteConversion, unsigned_integer::element::U384};
 
 pub fn verify(stark_proof: &StarkProof) -> bool {
     let transcript = &mut Transcript::new();
@@ -76,7 +72,6 @@ pub fn verify(stark_proof: &StarkProof) -> bool {
 
     let proof = &stark_proof.query_list[0];
 
-
     let d_1 = ((ORDER_OF_ROOTS_OF_UNITY_TRACE - 1) - 2) as usize;
     // This is information that should come from the trace, we are hardcoding it in this case though.
     let d_2: usize = 1;
@@ -126,7 +121,6 @@ pub fn verify(stark_proof: &StarkProof) -> bool {
     }
     result
 }
-
 
 pub fn verify_query(
     proof: &StarkQueryProof,
@@ -199,7 +193,6 @@ pub fn verify_query(
 
     // Check that v = P_{i+1}(z_i)
 
-
     // For each (merkle_root, merkle_auth_path) / fold
     // With the auth path containining the element that the
     // path proves it's existance
@@ -233,8 +226,7 @@ pub fn verify_query(
         // layer is, so we can check the merkle paths at the right index.
         let current_layer_domain_length = ORDER_OF_ROOTS_OF_UNITY_FOR_LDE as usize >> layer_number;
 
-        let layer_evaluation_index: usize =
-            q_i as usize % current_layer_domain_length;
+        let layer_evaluation_index: usize = q_i as usize % current_layer_domain_length;
 
         if !fri_layer_auth_path.verify(
             fri_layer_merkle_root,
@@ -244,9 +236,8 @@ pub fn verify_query(
             return false;
         }
 
-        let layer_evaluation_index_symmetric: usize = (q_i as usize
-            + current_layer_domain_length)
-            % current_layer_domain_length;
+        let layer_evaluation_index_symmetric: usize =
+            (q_i as usize + current_layer_domain_length) % current_layer_domain_length;
 
         if !fri_layer_auth_path_symmetric.verify(
             fri_layer_merkle_root,
