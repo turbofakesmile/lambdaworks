@@ -18,6 +18,18 @@ pub struct FieldElement<F: IsField> {
     value: F::BaseType,
 }
 
+impl<F> FieldElement<F>
+where
+    F::BaseType: Clone,
+    F: IsField,
+{
+    pub fn from_raw(value: &F::BaseType) -> Self {
+        Self {
+            value: value.clone(),
+        }
+    }
+}
+
 /// From overloading for field elements
 impl<F> From<&F::BaseType> for FieldElement<F>
 where

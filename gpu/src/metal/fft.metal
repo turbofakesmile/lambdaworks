@@ -1,4 +1,6 @@
 #include <metal_stdlib>
+
+#include "fp_u256.h.metal"
 #include "fp.h.metal"
 
 [[kernel]]
@@ -31,4 +33,15 @@ void calc_twiddle(
 {
     Fp omega = _omega;
     result[index] = pow(omega, index).asUInt32();
+}
+
+[[kernel]]
+void calc_twiddle_u256(
+    constant p256::Fp& _omega [[ buffer(0) ]],
+    device p256::Fp* result  [[ buffer(1) ]],
+    uint index [[ thread_position_in_grid ]]
+)
+{
+    p256::Fp omega = _omega;
+    result[index] = omega.pow(index);
 }

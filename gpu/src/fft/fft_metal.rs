@@ -123,7 +123,7 @@ impl FFTMetalState {
     ) -> Result<Vec<FieldElement<F>>, FFTError> {
         let twiddles_kernel = self
             .library
-            .get_function("calc_twiddle", None)
+            .get_function("calc_twiddle_u256", None)
             .map_err(FFTError::MetalFunctionError)?;
 
         let pipeline = self
@@ -132,6 +132,7 @@ impl FFTMetalState {
             .map_err(FFTError::MetalPipelineError)?;
 
         let basetype_size = std::mem::size_of::<F::BaseType>();
+        dbg!(basetype_size);
 
         let omega_buffer = {
             let omega = F::get_primitive_root_of_unity(order)?;
@@ -175,7 +176,7 @@ impl FFTMetalState {
         let results_len = result_buffer.length() as usize / basetype_size;
         let results_slice = unsafe { std::slice::from_raw_parts(results_ptr, results_len) };
 
-        Ok(results_slice.iter().map(FieldElement::from).collect())
+        Ok(results_slice.iter().map(FieldElement::from_raw).collect())
     }
 }
 
@@ -183,7 +184,10 @@ impl FFTMetalState {
 mod tests {
     use lambdaworks_math::{
         fft::bit_reversing::in_place_bit_reverse_permute,
-        field::{test_fields::u32_test_field::U32TestField, traits::RootsConfig},
+        field::{
+            fields::fft_friendly::u256_two_adic_prime_field::U256MontgomeryTwoAdicPrimeField,
+            test_fields::u32_test_field::U32TestField, traits::RootsConfig,
+        },
         polynomial::Polynomial,
     };
     use proptest::prelude::*;
@@ -230,7 +234,6 @@ mod tests {
                 in_place_bit_reverse_permute(&mut result);
 
                 prop_assert_eq!(&result[..], &expected[..]);
-
                 Ok(())
             }).unwrap();
         }
@@ -239,11 +242,12 @@ mod tests {
     proptest! {
         #[test]
         fn test_gpu_twiddles_match_cpu(order in powers_of_two(4)) {
+            type F256 = U256MontgomeryTwoAdicPrimeField;
             objc::rc::autoreleasepool(|| {
-                let cpu_twiddles = F::get_twiddles(order as u64, RootsConfig::Natural).unwrap();
+                let cpu_twiddles = F256::get_twiddles(order as u64, RootsConfig::Natural).unwrap();
 
                 let metal_state = FFTMetalState::new(None).unwrap();
-                let gpu_twiddles = metal_state.gen_twiddles::<F>(order as u64).unwrap();
+                let gpu_twiddles = metal_state.gen_twiddles::<F256>(order as u64).unwrap();
 
                 prop_assert_eq!(cpu_twiddles, gpu_twiddles);
                 Ok(())
