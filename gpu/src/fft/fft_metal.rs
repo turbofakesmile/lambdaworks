@@ -159,14 +159,10 @@ impl FFTMetalState {
         compute_encoder.set_buffer(0, Some(&omega_buffer), 0);
         compute_encoder.set_buffer(1, Some(&result_buffer), 0);
 
-        // SIMD group size:
-        let threads = pipeline.thread_execution_width();
-        // the idea is to have a SIMD per threadgroup, so:
-        let thread_group_size = MTLSize::new(threads, 1, 1);
-        // then the amount of groups should be the minimum that make `order` fit:
-        let thread_group_count = MTLSize::new((result_len + threads - 1) / threads, 1, 1);
+        let threads = MTLSize::new(result_len, 1, 1);
+        let threads_per_grid = MTLSize::new(pipeline.max_total_threads_per_threadgroup(), 1, 1);
 
-        compute_encoder.dispatch_thread_groups(thread_group_size, thread_group_count);
+        compute_encoder.dispatch_threads(threads_per_grid, threads);
         compute_encoder.end_encoding();
 
         command_buffer.commit();
