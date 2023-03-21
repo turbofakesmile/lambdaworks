@@ -160,9 +160,9 @@ impl FFTMetalState {
         compute_encoder.set_buffer(1, Some(&result_buffer), 0);
 
         let threads = MTLSize::new(result_len, 1, 1);
-        let threads_per_grid = MTLSize::new(pipeline.max_total_threads_per_threadgroup(), 1, 1);
+        let threads_per_group = MTLSize::new(pipeline.max_total_threads_per_threadgroup(), 1, 1);
 
-        compute_encoder.dispatch_threads(threads_per_grid, threads);
+        compute_encoder.dispatch_threads(threads, threads_per_group);
         compute_encoder.end_encoding();
 
         command_buffer.commit();
