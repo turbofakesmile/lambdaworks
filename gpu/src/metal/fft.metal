@@ -25,6 +25,30 @@ void radix2_dit_butterfly(
 }
 
 [[kernel]]
+void radix2_dit_butterfly_u256(
+    device p256::Fp* input [[ buffer(0) ]],
+    constant p256::Fp* twiddles [[ buffer(1) ]],
+    constant uint32_t& group_size [[ buffer(2) ]],
+    uint32_t pos_in_group [[ thread_position_in_threadgroup ]],
+    uint32_t group [[ threadgroup_position_in_grid ]],
+    uint32_t global_tid [[ thread_position_in_grid ]]
+)
+{
+  uint32_t i = group * group_size + pos_in_group;
+  uint32_t distance = group_size / 2;
+
+  p256::Fp w = twiddles[group];
+  p256::Fp a = input[i];
+  p256::Fp b = input[i + distance];
+
+  p256::Fp res_1 = a + w*b;
+  p256::Fp res_2 = a - w*b;
+
+  input[i]             = res_1; // --\/--
+  input[i + distance]  = res_2; // --/\--
+}
+
+[[kernel]]
 void calc_twiddle(
     constant uint32_t& _omega [[ buffer(0) ]],
     device uint32_t* result  [[ buffer(1) ]],

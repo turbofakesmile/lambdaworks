@@ -114,7 +114,7 @@ impl FFTMetalState {
         let results_len = input_buffer.length() as usize / basetype_size;
         let results_slice = unsafe { std::slice::from_raw_parts(results_ptr, results_len) };
 
-        Ok(results_slice.iter().map(FieldElement::from).collect())
+        Ok(results_slice.iter().map(FieldElement::from_raw).collect())
     }
 
     pub fn gen_twiddles<F: IsTwoAdicField>(
@@ -132,7 +132,6 @@ impl FFTMetalState {
             .map_err(FFTError::MetalPipelineError)?;
 
         let basetype_size = std::mem::size_of::<F::BaseType>();
-        dbg!(basetype_size);
 
         let omega_buffer = {
             let omega = F::get_primitive_root_of_unity(order)?;
@@ -182,7 +181,7 @@ mod tests {
         fft::bit_reversing::in_place_bit_reverse_permute,
         field::{
             fields::fft_friendly::u256_two_adic_prime_field::U256MontgomeryTwoAdicPrimeField,
-            test_fields::u32_test_field::U32TestField, traits::RootsConfig,
+            traits::RootsConfig,
         },
         polynomial::Polynomial,
     };
@@ -190,7 +189,7 @@ mod tests {
 
     use super::*;
 
-    type F = U32TestField;
+    type F = U256MontgomeryTwoAdicPrimeField;
     type FE = FieldElement<F>;
 
     prop_compose! {
@@ -224,7 +223,7 @@ mod tests {
 
                 let metal_state = FFTMetalState::new(None).unwrap();
                 let twiddles = F::get_twiddles(order, RootsConfig::BitReverse).unwrap();
-                let command_buff_encoder = metal_state.setup_fft("radix2_dit_butterfly", &twiddles).unwrap();
+                let command_buff_encoder = metal_state.setup_fft("radix2_dit_butterfly_u256", &twiddles).unwrap();
 
                 let mut result = metal_state.execute_fft(poly.coefficients(), command_buff_encoder).unwrap();
                 in_place_bit_reverse_permute(&mut result);
