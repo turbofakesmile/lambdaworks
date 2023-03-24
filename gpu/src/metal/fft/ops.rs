@@ -1,4 +1,7 @@
-use lambdaworks_math::field::{element::FieldElement, traits::IsTwoAdicField};
+use lambdaworks_math::{field::{
+    element::FieldElement,
+    traits::{IsTwoAdicField, RootsConfig},
+}, fft::bit_reversing::in_place_bit_reverse_permute};
 
 use crate::metal::{abstractions::state::*, fft::errors::FFTMetalError};
 
@@ -61,13 +64,18 @@ pub fn fft<F: IsTwoAdicField>(
 /// Generates 2^{`order`} naturally-ordered twiddle factors in parallel, in Metal.
 pub fn gen_twiddles<F: IsTwoAdicField>(
     order: u64,
-    state: MetalState,
+    config: RootsConfig,
+    state: &MetalState,
 ) -> Result<Vec<FieldElement<F>>, FFTMetalError> {
     let len = (1 << order) / 2;
 
-    let pipeline = state
-        .setup_pipeline("calc_twiddle")
-        .map_err(FFTMetalError::Metal)?;
+    let pipeline = match config {
+        RootsConfig::Natural => state.setup_pipeline("calc_twiddle"),
+        RootsConfig::NaturalInversed => state.setup_pipeline("calc_twiddle_inv"),
+        RootsConfig::BitReverse => state.setup_pipeline("calc_twiddle_bitrev"),
+        RootsConfig::BitReverseInversed => state.setup_pipeline("calc_twiddle_bitrev_inv"),
+    }
+    .map_err(FFTMetalError::Metal)?;
 
     let result_buffer = state.alloc_buffer::<F::BaseType>(len);
 
@@ -158,6 +166,26 @@ mod tests {
                 let gpu_twiddles = gen_twiddles::<F>(order as u64, metal_state).unwrap();
 
                 prop_assert_eq!(cpu_twiddles, gpu_twiddles);
+    proptest! {
+        // These tests actually pass, but we ignore them because they fail in the CI due to a lack of GPU
+        #[test]
+        fn test_gpu_twiddles_match_cpu(order in 2..16) {
+            objc::rc::autoreleasepool(|| {
+                let configs = [
+                    RootsConfig::Natural,
+                    RootsConfig::NaturalInversed,
+                    RootsConfig::BitReverse,
+                    RootsConfig::BitReverseInversed,
+                ];
+
+                for config in configs {
+                    let cpu_twiddles = F::get_twiddles(order as u64, config).unwrap();
+
+                    let metal_state = MetalState::new(None).unwrap();
+                    let gpu_twiddles = gen_twiddles::<F>(order as u64, config, &metal_state).unwrap();
+
+                    prop_assert_eq!(cpu_twiddles, gpu_twiddles);
+                }
                 Ok(())
             }).unwrap();
         }
