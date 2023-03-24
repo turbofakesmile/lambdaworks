@@ -1,12 +1,14 @@
-use lambdaworks_math::{field::{
-    element::FieldElement,
-    traits::{IsTwoAdicField, RootsConfig},
-}, fft::bit_reversing::in_place_bit_reverse_permute};
+use lambdaworks_math::{
+    fft::bit_reversing::in_place_bit_reverse_permute,
+    field::{
+        element::FieldElement,
+        traits::{IsTwoAdicField, RootsConfig},
+    },
+};
 
 use crate::metal::{abstractions::state::*, fft::errors::FFTMetalError};
 
 use super::helpers::{log2, void_ptr};
-use lambdaworks_math::fft::bit_reversing::in_place_bit_reverse_permute;
 use metal::MTLSize;
 
 use core::mem;
@@ -21,7 +23,7 @@ use core::mem;
 pub fn fft<F: IsTwoAdicField>(
     input: &[FieldElement<F>],
     twiddles: &[FieldElement<F>],
-    state: MetalState,
+    state: &MetalState,
 ) -> Result<Vec<FieldElement<F>>, FFTMetalError> {
     let pipeline = state
         .setup_pipeline("radix2_dit_butterfly")
@@ -59,6 +61,19 @@ pub fn fft<F: IsTwoAdicField>(
     let mut result = MetalState::retrieve_contents(&input_buffer);
     in_place_bit_reverse_permute(&mut result); // TODO: implement this in metal.
     Ok(result.iter().map(FieldElement::from).collect())
+}
+
+pub fn fft_with_blowup<F: IsTwoAdicField>(
+    input: &[FieldElement<F>],
+    twiddles: &[FieldElement<F>],
+    blowup_factor: usize,
+    state: &MetalState,
+) -> Result<Vec<FieldElement<F>>, FFTMetalError> {
+    let mut extended = input.to_vec();
+    let domain_size = input.len() * blowup_factor;
+    extended.resize(domain_size, FieldElement::zero());
+
+    fft(&extended, twiddles, state)
 }
 
 /// Generates 2^{`order`} naturally-ordered twiddle factors in parallel, in Metal.
@@ -109,6 +124,7 @@ mod tests {
 
     use super::*;
 
+    const MODULUS: u64 = 2013265921;
     type F = U32TestField;
     type FE = FieldElement<F>;
 
@@ -121,6 +137,9 @@ mod tests {
         fn field_element()(num in any::<u64>().prop_filter("Avoid null polynomial", |x| x != &0)) -> FE {
             FE::from(num)
         }
+    }
+    prop_compose! {
+        fn offset()(num in 1..MODULUS - 1) -> FE { FE::from(num) }
     }
     prop_compose! {
         fn field_vec(max_exp: u8)(elem in field_element(), size in powers_of_two(max_exp)) -> Vec<FE> {
@@ -136,7 +155,6 @@ mod tests {
     proptest! {
         // Property-based test that ensures Metal parallel FFT gives same result as a sequential one.
         // These tests actually pass, but we ignore them because they fail in the CI due to a lack of GPU
-        #[ignore]
         #[test]
         fn test_metal_fft_matches_sequential(poly in poly(8)) {
             objc::rc::autoreleasepool(|| {
@@ -145,7 +163,7 @@ mod tests {
 
                 let metal_state = MetalState::new(None).unwrap();
                 let twiddles = F::get_twiddles(order, RootsConfig::BitReverse).unwrap();
-                let result = fft(poly.coefficients(), &twiddles, metal_state).unwrap();
+                let result = fft(poly.coefficients(), &twiddles, &metal_state).unwrap();
 
                 prop_assert_eq!(&result[..], &expected[..]);
 
@@ -155,17 +173,39 @@ mod tests {
     }
 
     proptest! {
+        // Property-based test that ensures Metal parallel FFT in cosets gives same result as a sequential one.
         // These tests actually pass, but we ignore them because they fail in the CI due to a lack of GPU
         #[ignore]
         #[test]
-        fn test_gpu_twiddles_match_cpu(order in 1..16) {
+        fn test_metal_fft_coset_matches_naive(poly in poly(8), offset in offset(), blowup_factor in powers_of_two(4)) {
             objc::rc::autoreleasepool(|| {
-                let cpu_twiddles = F::get_twiddles(order as u64, RootsConfig::Natural).unwrap();
-
                 let metal_state = MetalState::new(None).unwrap();
-                let gpu_twiddles = gen_twiddles::<F>(order as u64, metal_state).unwrap();
 
-                prop_assert_eq!(cpu_twiddles, gpu_twiddles);
+                let scaled = poly.scale(&offset);
+
+                let domain_size = scaled.coefficients().len() * blowup_factor;
+                let order = log2(domain_size).map_err(FFTMetalError::FFT).unwrap();
+                let twiddles = F::get_twiddles(order, RootsConfig::BitReverse).unwrap();
+
+                let result = fft_with_blowup(
+                    scaled.coefficients(),
+                    &twiddles,
+                    blowup_factor,
+                    &metal_state,
+                )
+                .unwrap();
+
+                let order = log2(poly.coefficients().len() * blowup_factor).unwrap();
+                let twiddles = F::get_powers_of_primitive_root_coset(order, poly.coefficients.len() * blowup_factor, &offset).unwrap();
+                let expected = poly.evaluate_slice(&twiddles);
+
+                prop_assert_eq!(&result[..], &expected[..]);
+
+                Ok(())
+            }).unwrap();
+        }
+    }
+
     proptest! {
         // These tests actually pass, but we ignore them because they fail in the CI due to a lack of GPU
         #[test]
