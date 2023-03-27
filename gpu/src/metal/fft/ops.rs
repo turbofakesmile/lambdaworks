@@ -124,8 +124,8 @@ mod tests {
 
     use super::*;
 
-    const MODULUS: u64 = 2013265921;
-    type F = U32TestField;
+    const MODULUS: u32 = 2013265921;
+    type F = U32TestField<MODULUS>;
     type FE = FieldElement<F>;
 
     prop_compose! {
@@ -139,7 +139,7 @@ mod tests {
         }
     }
     prop_compose! {
-        fn offset()(num in 1..MODULUS - 1) -> FE { FE::from(num) }
+        fn offset()(num in 1..MODULUS - 1) -> FE { FE::from(num as u64) }
     }
     prop_compose! {
         fn field_vec(max_exp: u8)(elem in field_element(), size in powers_of_two(max_exp)) -> Vec<FE> {
@@ -199,7 +199,7 @@ mod tests {
                 let twiddles = F::get_powers_of_primitive_root_coset(order, poly.coefficients.len() * blowup_factor, &offset).unwrap();
                 let expected = poly.evaluate_slice(&twiddles);
 
-                prop_assert_eq!(&result[..], &expected[..]);
+                prop_assert_eq!(&result, &expected);
 
                 Ok(())
             }).unwrap();
