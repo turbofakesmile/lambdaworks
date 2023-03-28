@@ -2,12 +2,11 @@ use criterion::Criterion;
 use lambdaworks_gpu::metal::{abstractions::state::MetalState, fft::ops::*};
 use lambdaworks_math::{
     field::{element::FieldElement, traits::IsTwoAdicField},
-    field::{test_fields::u32_test_field::U32TestField, traits::RootsConfig},
+    field::{test_fields::u32_test_field::U32TwoAdicTestField, traits::RootsConfig},
 };
 use rand::random;
 
-const MODULUS: u32 = 2013265921;
-type F = U32TestField<MODULUS>;
+type F = U32TwoAdicTestField;
 type FE = FieldElement<F>;
 
 fn gen_coeffs(pow: usize) -> Vec<FE> {

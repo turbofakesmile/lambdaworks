@@ -53,8 +53,9 @@ impl<const MODULUS: u32> IsField for U32TestField<MODULUS> {
     }
 }
 
-// These params correspond to the 2013265921 modulus.
-impl<const MODULUS: u32> IsTwoAdicField for U32TestField<MODULUS> {
+pub type U32TwoAdicTestField = U32TestField<2013265921>;
+
+impl IsTwoAdicField for U32TwoAdicTestField {
     const TWO_ADICITY: u64 = 27;
     const TWO_ADIC_PRIMITVE_ROOT_OF_UNITY: u32 = 440564289;
 }

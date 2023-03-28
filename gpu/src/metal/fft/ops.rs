@@ -117,15 +117,17 @@ pub fn gen_twiddles<F: IsTwoAdicField>(
 mod tests {
     use crate::metal::abstractions::state::*;
     use lambdaworks_math::{
-        field::{test_fields::u32_test_field::U32TestField, traits::RootsConfig},
+        field::{
+            test_fields::u32_test_field::U32TwoAdicTestField,
+            traits::{IsField, RootsConfig},
+        },
         polynomial::Polynomial,
     };
     use proptest::prelude::*;
 
     use super::*;
 
-    const MODULUS: u32 = 2013265921;
-    type F = U32TestField<MODULUS>;
+    type F = U32TwoAdicTestField;
     type FE = FieldElement<F>;
 
     prop_compose! {
@@ -139,7 +141,7 @@ mod tests {
         }
     }
     prop_compose! {
-        fn offset()(num in 1..MODULUS - 1) -> FE { FE::from(num as u64) }
+        fn offset()(num in 1..F::neg(&1)) -> FE { FE::from(num as u64) }
     }
     prop_compose! {
         fn field_vec(max_exp: u8)(elem in field_element(), size in powers_of_two(max_exp)) -> Vec<FE> {
