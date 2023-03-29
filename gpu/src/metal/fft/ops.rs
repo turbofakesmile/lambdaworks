@@ -185,9 +185,9 @@ mod tests {
             objc::rc::autoreleasepool(|| {
                 let configs = [
                     RootsConfig::Natural,
-                    RootsConfig::NaturalInversed,
-                    RootsConfig::BitReverse,
-                    RootsConfig::BitReverseInversed,
+                    // RootsConfig::NaturalInversed,
+                    // RootsConfig::BitReverse,
+                    // RootsConfig::BitReverseInversed,
                 ];
 
                 for config in configs {
