@@ -81,6 +81,57 @@ NOTE: a careful reader might note that we can actually evaluate `H` on the eleme
 
 ----------
 
+## Polynomials
+
+A univariate polynomial is a mathematical object of the form
+$$p(x) = a_0+a_1 x + a_2 x^2 + \cdots +a_n x^n$$
+where the $a_k$ are the coefficients of the polynomial (you can think of them as numbers, such as real, complex or integers). The greatest power of $x$ such that $a_i$ is non-zero is the degree of the polynomial. For example,
+$$ p(x) = 1 + x + 2x^2 + x^3$$
+is a polynomial of degree $3$ and
+$$ p(x) = 5 $$ has degree zero.
+
+Polynomials can be added or multiplied, equipping them with a ring structure. Addition is done coefficient-wise, while multipliciation involves the application of the distributive property and them summing coefficient-wise. For example,
+$p(x) = 3 + 5x + 2x^2$
+$q(x) = 1 + 2x^2$
+then
+$s(x) = p(x) + q(x) = 3 + 5x + 2x^2 + 1 + 2x^2$
+$s(x) = (3+1) + 5x + (2 + 2)x^2 = 4 + 5x + 4x^2$
+and
+$m(x) = p(x)q(x) = (3 + 5x + 2x^2 )(1 + 2x^2)$
+$m(x) = 3 + 6 x^2 + 5x + 10x^3 + 2x^2 + 4x^4$
+$m(x) = 3 + 5x^2 + 8x^2 + 10x^3 + 4x^4$
+The operations between coefficients follow the addition and multiplication rules.
+
+Polynomials can be represented in two common ways:
+1. In coefficient form, by giving a vector of its coefficients, $(a_0, a_1 , a_2 , ... , a_n )$.
+2. In evaluation form, given by the evaluations of the polynomial over $n+1$ distinct points $(p(x_0), p(x_1) , ..., p(x_n) )$.
+
+We can transform from coefficients to evaluations by choosing $n+1$ points and evaluating, or by taking the $n+1$ evaluations and interpolating. This is possible due to the [interpolation theorem](https://en.wikipedia.org/wiki/Polynomial_interpolation#Interpolation_theorem). Interpolation can be done very efficiently using the Fast-Fourier Transform.
+
+## Polynomial division
+
+In an analogous way to integers, we can define what it means that a polynomial $p(x)$ is divisible by $d(x)$. We say $d(x)$ divides $p(x)$ if there exists a polynomial $q(x)$ such that
+$$ p(x) = q(x) d(x)$$
+If the polynomial is not divisible, then there is another polynomial $r(x)$ with degree less than the degree of $d(x)$ such that
+$$ p(x) = q(x) d(x) + r(x)$$.
+
+If we want to make the division in this case, the result is not a polynomial, but a rational function.
+
+## Roots of a polynomial
+
+We say that $x_0$ is a root of the polynomial if $p( x_0 ) = 0$. The polynomial can be factored as $p (x) = (x - x_0)Q(x)$, where $Q(x)$ has lower degree than $p(x)$. This implies that the polynomial $x-x_0$ divides $p(x)$.
+
+A consequence of this is that if $p (a) = b$, then $p(x) - b$ is divisible by $x - a$. This is one of the key results to build STARKs. Just think of the new polynomial, $w(x) = p(x) - b$, which has a root on $x = a$, since 
+$$w(a) = p(a) - b = b - b = 0$$
+
+## Low-degree extension
+
+We know a polynomial of degree $n$ is specified by giving $n+1$ evaluations of the polynomial. If we give more than $n+1$ evaluations, we recover exactly the same polynomial, just because the information is redundant. If someone changed slightly one of the evaluations, the interpolating polynomial is radically different, since two polynomials can agree at most on $m$ points, where $m$ is the highest degree of the polynomial. This is useful because we can find easily when there is some error or change in the evaluations of the polynomial (for example, this works in error correcting codes) or if we have a dishonest prover in the case of STARKs.
+
+## Merkle trees
+
+## Fast-Fourier Transform
+
 TODO:
 - What's the ce blowup factor?
 - What's the out of domain frame?
