@@ -97,37 +97,18 @@ mod tests {
     use crate::fft::test_helpers::naive_matrix_dft_test;
     use crate::field::test_fields::u64_test_field::U64TestField;
     use crate::{fft::bit_reversing::in_place_bit_reverse_permute, field::traits::RootsConfig};
-    use proptest::{collection, prelude::*};
+    use proptest::prelude::*;
 
     use super::*;
-
-    type F = U64TestField;
-    type FE = FieldElement<F>;
-
-    prop_compose! {
-        fn powers_of_two(max_exp: u8)(exp in 1..max_exp) -> usize { 1 << exp }
-        // max_exp cannot be multiple of the bits that represent a usize, generally 64 or 32.
-        // also it can't exceed the test field's two-adicity.
-    }
-    prop_compose! {
-        fn field_element()(num in any::<u64>().prop_filter("Avoid null coefficients", |x| x != &0)) -> FE {
-            FE::from(num)
-        }
-    }
-    prop_compose! {
-        fn field_vec(max_exp: u8)(vec in collection::vec(field_element(), 2..1<<max_exp).prop_filter("Avoid polynomials of size not power of two", |vec| vec.len().is_power_of_two())) -> Vec<FE> {
-            vec
-        }
-    }
 
     proptest! {
         // Property-based test that ensures NR Radix-2 FFT gives the same result as a naive DFT.
         #[test]
-        fn test_nr_2radix_fft_matches_naive_eval(coeffs in field_vec(8)) {
+        fn test_nr_2radix_fft_matches_naive_eval(coeffs in U64TestField::vector_with_field_elements(8)) {
             let expected = naive_matrix_dft_test(&coeffs);
 
             let order = log2(coeffs.len()).unwrap();
-            let twiddles = F::get_twiddles(order, RootsConfig::BitReverse).unwrap();
+            let twiddles = U64TestField::get_twiddles(order, RootsConfig::BitReverse).unwrap();
 
             let mut result = coeffs;
             in_place_nr_2radix_fft(&mut result, &twiddles);
@@ -138,11 +119,11 @@ mod tests {
 
         // Property-based test that ensures RN Radix-2 FFT gives the same result as a naive DFT.
         #[test]
-        fn test_rn_2radix_fft_matches_naive_eval(coeffs in field_vec(8)) {
+        fn test_rn_2radix_fft_matches_naive_eval(coeffs in U64TestField::vector_with_field_elements(8)) {
             let expected = naive_matrix_dft_test(&coeffs);
 
             let order = log2(coeffs.len()).unwrap();
-            let twiddles = F::get_twiddles(order, RootsConfig::Natural).unwrap();
+            let twiddles = U64TestField::get_twiddles(order, RootsConfig::Natural).unwrap();
 
             let mut result = coeffs;
             in_place_bit_reverse_permute(&mut result);

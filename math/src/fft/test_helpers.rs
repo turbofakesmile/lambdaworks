@@ -29,40 +29,24 @@ pub fn naive_matrix_dft_test<F: IsTwoAdicField>(input: &[FieldElement<F>]) -> Ve
 
 #[cfg(test)]
 mod fft_helpers_test {
-    use crate::{field::test_fields::u64_test_field::U64TestField, polynomial::Polynomial};
-    use proptest::{collection, prelude::*};
+    use crate::{
+        field::test_fields::u64_test_field::{U64TestField, U64TestFieldElement},
+        polynomial::Polynomial,
+    };
+    use proptest::prelude::*;
 
     use super::*;
-
-    type F = U64TestField;
-    type FE = FieldElement<F>;
-
-    prop_compose! {
-        fn powers_of_two(max_exp: u8)(exp in 1..max_exp) -> usize { 1 << exp }
-        // max_exp cannot be multiple of the bits that represent a usize, generally 64 or 32.
-        // also it can't exceed the test field's two-adicity.
-    }
-    prop_compose! {
-        fn field_element()(num in any::<u64>().prop_filter("Avoid null coefficients", |x| x != &0)) -> FE {
-            FE::from(num)
-        }
-    }
-    prop_compose! {
-        fn field_vec(max_exp: u8)(vec in collection::vec(field_element(), 2..1<<max_exp).prop_filter("Avoid polynomials of size not power of two", |vec| vec.len().is_power_of_two())) -> Vec<FE> {
-            vec
-        }
-    }
 
     proptest! {
         // Property-based test that ensures dft() gives the same result as a naive polynomial evaluation.
         #[test]
-        fn test_dft_same_as_eval(coeffs in field_vec(8)) {
+        fn test_dft_same_as_eval(coeffs in U64TestField::vector_with_field_elements(8)) {
             let dft = naive_matrix_dft_test(&coeffs);
 
             let poly = Polynomial::new(&coeffs);
             let order = log2(coeffs.len()).unwrap();
-            let twiddles = F::get_powers_of_primitive_root(order, coeffs.len(), RootsConfig::Natural).unwrap();
-            let evals: Vec<FE> = twiddles.iter().map(|x| poly.evaluate(x)).collect();
+            let twiddles = U64TestField::get_powers_of_primitive_root(order, coeffs.len(), RootsConfig::Natural).unwrap();
+            let evals: Vec<U64TestFieldElement> = twiddles.iter().map(|x| poly.evaluate(x)).collect();
 
             prop_assert_eq!(evals, dft);
         }

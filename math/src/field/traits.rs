@@ -164,13 +164,11 @@ mod tests {
 
     use super::*;
 
-    type F = U64TestField;
-
     proptest! {
         #[test]
         fn test_gen_twiddles_bit_reversed_validity(n in 1..8_u64) {
-            let twiddles = F::get_twiddles(n, RootsConfig::Natural).unwrap();
-            let mut twiddles_to_reorder = F::get_twiddles(n, RootsConfig::BitReverse).unwrap();
+            let twiddles = U64TestField::get_twiddles(n, RootsConfig::Natural).unwrap();
+            let mut twiddles_to_reorder = U64TestField::get_twiddles(n, RootsConfig::BitReverse).unwrap();
             in_place_bit_reverse_permute(&mut twiddles_to_reorder); // so now should be naturally ordered
 
             prop_assert_eq!(twiddles, twiddles_to_reorder);
