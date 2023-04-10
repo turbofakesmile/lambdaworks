@@ -242,6 +242,8 @@ mod tests {
             Some(3),
         );
 
+        println!("FINAL TRACE: {:?}", trace);
+
         // generate the proof of execution
         let proof_options =
             giza_air::ProofOptions::with_proof_options(None, None, None, None, None);
