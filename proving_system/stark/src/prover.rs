@@ -7,7 +7,7 @@ use crate::{
     proof::{StarkProof, StarkQueryProof},
     transcript_to_field, transcript_to_usize,
 };
-#[cfg(not(feature = "test_fiat_shamir"))]
+#[cfg(all(not(feature = "test_fiat_shamir"), not(feature = "esp")))]
 use lambdaworks_crypto::fiat_shamir::default_transcript::DefaultTranscript;
 use lambdaworks_crypto::fiat_shamir::transcript::Transcript;
 

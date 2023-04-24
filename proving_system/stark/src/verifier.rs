@@ -4,7 +4,7 @@ use super::{
     sample_z_ood,
 };
 use crate::{fri::HASHER, proof::StarkProof, transcript_to_field, transcript_to_usize};
-#[cfg(not(feature = "test_fiat_shamir"))]
+#[cfg(all(not(feature = "test_fiat_shamir"), not(feature = "esp")))]
 use lambdaworks_crypto::fiat_shamir::default_transcript::DefaultTranscript;
 #[cfg(feature = "esp")]
 use lambdaworks_crypto::fiat_shamir::embedded_transcript::EmbeddedTranscript;

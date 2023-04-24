@@ -1,4 +1,4 @@
-use sha2::{Digest, Sha256, Sha224};
+use sha2::{Digest, Sha224};
 
 use super::transcript::Transcript;
 
