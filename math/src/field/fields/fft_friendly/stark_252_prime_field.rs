@@ -1,7 +1,7 @@
 use crate::{
     field::{
-        fields::montgomery_backed_prime_fields::{IsModulus, U256PrimeField},
-        traits::IsTwoAdicField,
+        fields::montgomery_backed_prime_fields::U256PrimeField,
+        traits::{IsModulus, IsTwoAdicField},
     },
     unsigned_integer::element::{UnsignedInteger, U256},
 };

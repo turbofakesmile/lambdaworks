@@ -48,6 +48,13 @@ pub trait IsTwoAdicField: IsField {
     }
 }
 
+/// This trait is necessary for us to be able to use unsigned integer types bigger than
+/// `u128` (the biggest native `unit`) as constant generics.
+/// This trait should be removed when Rust supports this feature.
+pub trait IsModulus<U> {
+    const MODULUS: U;
+}
+
 /// Trait to add field behaviour to a struct.
 pub trait IsField: Debug + Clone {
     /// The underlying base type for representing elements from the field.
@@ -107,7 +114,7 @@ pub trait IsField: Debug + Clone {
     fn from_base_type(x: Self::BaseType) -> Self::BaseType;
 }
 
-pub trait IsPrimeField: IsField {
+pub trait IsPrimeField: IsField + IsModulus<Self::BaseType> {
     type RepresentativeType: IsUnsignedInteger;
 
     // Returns the representative of the value stored

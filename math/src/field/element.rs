@@ -10,8 +10,8 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use super::fields::montgomery_backed_prime_fields::{IsModulus, MontgomeryBackendPrimeField};
-use super::traits::IsPrimeField;
+use super::fields::montgomery_backed_prime_fields::MontgomeryBackendPrimeField;
+use super::traits::{IsModulus, IsPrimeField};
 
 /// A field element with operations algorithms defined in `F`
 #[derive(Debug, Clone)]

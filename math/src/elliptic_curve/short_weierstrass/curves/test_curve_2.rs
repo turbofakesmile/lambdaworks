@@ -1,8 +1,7 @@
 use crate::elliptic_curve::short_weierstrass::point::ShortWeierstrassProjectivePoint;
 use crate::elliptic_curve::traits::IsEllipticCurve;
-use crate::field::fields::montgomery_backed_prime_fields::{
-    IsModulus, MontgomeryBackendPrimeField,
-};
+use crate::field::fields::montgomery_backed_prime_fields::MontgomeryBackendPrimeField;
+use crate::field::traits::IsModulus;
 use crate::unsigned_integer::element::U384;
 use crate::{
     elliptic_curve::short_weierstrass::traits::IsShortWeierstrass,

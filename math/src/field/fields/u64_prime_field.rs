@@ -1,7 +1,7 @@
 use crate::cyclic_group::IsGroup;
 use crate::errors::ByteConversionError::{FromBEBytesError, FromLEBytesError};
 use crate::field::element::FieldElement;
-use crate::field::traits::{IsField, IsPrimeField, IsTwoAdicField};
+use crate::field::traits::{IsField, IsModulus, IsPrimeField, IsTwoAdicField};
 use crate::traits::ByteConversion;
 
 /// Type representing prime fields over unsigned 64-bit integers.
@@ -15,6 +15,10 @@ pub type FE17 = U64FieldElement<17>;
 impl IsTwoAdicField for F17 {
     const TWO_ADICITY: u64 = 4;
     const TWO_ADIC_PRIMITVE_ROOT_OF_UNITY: u64 = 3;
+}
+
+impl<const MODULUS: u64> IsModulus<u64> for U64PrimeField<MODULUS> {
+    const MODULUS: u64 = MODULUS;
 }
 
 impl<const MODULUS: u64> IsField for U64PrimeField<MODULUS> {

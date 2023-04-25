@@ -161,7 +161,7 @@ mod tests {
         },
         field::{
             element::FieldElement,
-            fields::montgomery_backed_prime_fields::{IsModulus, MontgomeryBackendPrimeField},
+            fields::montgomery_backed_prime_fields::MontgomeryBackendPrimeField, traits::IsModulus,
         },
         polynomial::Polynomial,
         unsigned_integer::element::U256,

@@ -4,7 +4,8 @@ use crate::field::{
         cubic::{CubicExtensionField, HasCubicNonResidue},
         quadratic::{HasQuadraticNonResidue, QuadraticExtensionField},
     },
-    fields::montgomery_backed_prime_fields::{IsModulus, MontgomeryBackendPrimeField},
+    fields::montgomery_backed_prime_fields::MontgomeryBackendPrimeField,
+    traits::IsModulus,
 };
 use crate::unsigned_integer::element::U384;
 

@@ -1,5 +1,6 @@
 use lambdaworks_crypto::commitments::kzg::KateZaveruchaGoldberg;
 use lambdaworks_crypto::commitments::kzg::StructuredReferenceString;
+use lambdaworks_math::field::traits::IsModulus;
 use lambdaworks_math::{
     cyclic_group::IsGroup,
     elliptic_curve::{
@@ -13,7 +14,7 @@ use lambdaworks_math::{
 };
 use lambdaworks_math::{
     elliptic_curve::short_weierstrass::curves::bls12_381::pairing::BLS12381AtePairing,
-    field::fields::montgomery_backed_prime_fields::IsModulus, unsigned_integer::element::U256,
+    unsigned_integer::element::U256,
 };
 
 /// Specific curves and fields are set for testing purposes

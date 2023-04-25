@@ -1,5 +1,5 @@
 use crate::field::element::FieldElement;
-use crate::field::traits::IsPrimeField;
+use crate::field::traits::{IsModulus, IsPrimeField};
 use crate::traits::ByteConversion;
 use crate::{
     field::traits::IsField, unsigned_integer::element::UnsignedInteger,
@@ -11,16 +11,17 @@ use std::marker::PhantomData;
 pub type U384PrimeField<M> = MontgomeryBackendPrimeField<M, 6>;
 pub type U256PrimeField<M> = MontgomeryBackendPrimeField<M, 4>;
 
-/// This trait is necessary for us to be able to use unsigned integer types bigger than
-/// `u128` (the biggest native `unit`) as constant generics.
-/// This trait should be removed when Rust supports this feature.
-pub trait IsModulus<U> {
-    const MODULUS: U;
-}
-
 #[derive(Clone, Debug)]
 pub struct MontgomeryBackendPrimeField<M, const NUM_LIMBS: usize> {
     phantom: PhantomData<M>,
+}
+
+impl<M, const NUM_LIMBS: usize> IsModulus<UnsignedInteger<NUM_LIMBS>>
+    for MontgomeryBackendPrimeField<M, NUM_LIMBS>
+where
+    M: IsModulus<UnsignedInteger<NUM_LIMBS>>,
+{
+    const MODULUS: UnsignedInteger<NUM_LIMBS> = M::MODULUS;
 }
 
 impl<M, const NUM_LIMBS: usize> MontgomeryBackendPrimeField<M, NUM_LIMBS>
@@ -211,12 +212,14 @@ where
 #[cfg(test)]
 mod tests_u384_prime_fields {
     use crate::field::element::FieldElement;
-    use crate::field::fields::montgomery_backed_prime_fields::{IsModulus, U384PrimeField};
     use crate::field::traits::IsField;
+    use crate::field::traits::IsModulus;
     use crate::field::traits::IsPrimeField;
     use crate::traits::ByteConversion;
     use crate::unsigned_integer::element::UnsignedInteger;
     use crate::unsigned_integer::element::U384;
+
+    use super::U384PrimeField;
 
     #[derive(Clone, Debug)]
     struct U384Modulus23;
@@ -536,8 +539,9 @@ mod tests_u384_prime_fields {
 #[cfg(test)]
 mod tests_u256_prime_fields {
     use crate::field::element::FieldElement;
-    use crate::field::fields::montgomery_backed_prime_fields::{IsModulus, U256PrimeField};
+    use crate::field::fields::montgomery_backed_prime_fields::U256PrimeField;
     use crate::field::traits::IsField;
+    use crate::field::traits::IsModulus;
     use crate::field::traits::IsPrimeField;
     use crate::traits::ByteConversion;
     use crate::unsigned_integer::element::UnsignedInteger;
