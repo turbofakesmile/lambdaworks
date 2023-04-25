@@ -24,8 +24,18 @@ use lambdaworks_stark::air::AIR;
 use lambdaworks_stark::prover::prove;
 use lambdaworks_stark::verifier::verify;
 
-pub type Stark252PrimeField = U256PrimeField<MontgomeryConfigStark252PrimeField>;
-type FE = FieldElement<Stark252PrimeField>;
+
+use lambdaworks_math::field::fields::fft_friendly::ecgfp5_prime_field::Ecgfp5;
+
+
+//pub type Ecgfp5FE = FieldElement<Ecgfp5>;
+
+// pub type Stark252PrimeField = U256PrimeField<MontgomeryConfigStark252PrimeField>;
+
+//    type FE = FieldElement<Stark252PrimeField>;
+
+type FE = FieldElement<Ecgfp5>;
+
 
 fn main() {
     unsafe {
