@@ -437,4 +437,16 @@ mod u256_two_adic_prime_field_tests {
 
         assert_eq!(expected, result);
     }
+
+    #[test]
+    fn test_apply_fft_and_inverse_should_equal_original() {
+        let input: Vec<_> = (0..(1 << 8))
+            .map(|_| FieldElement::<Stark252PrimeField>::from(rand::random::<u64>()))
+            .collect();
+
+        let transformed = recursive_fft(input.as_ref());
+        let inverse = ifft(transformed.as_ref());
+
+        assert_eq!(input, inverse);
+    }
 }
