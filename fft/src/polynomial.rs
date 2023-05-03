@@ -186,6 +186,51 @@ pub fn recursive_fft<F: IsTwoAdicField>(input: &[FieldElement<F>]) -> Vec<FieldE
     y
 }
 
+fn recursive_ifft<F: IsTwoAdicField>(input: &[FieldElement<F>]) -> Vec<FieldElement<F>> {
+    let n = input.len();
+    assert!(n.is_power_of_two());
+
+    // If there's only one coefficient for `f`, it's a constant polynomial
+    if n == 1 {
+        return input.to_vec();
+    }
+
+    // Partition polynomial into even and odd coefficients
+    let (even_poly, odd_poly): (Vec<_>, Vec<_>) =
+        input.iter().enumerate().partition(|(i, _)| i % 2 == 0);
+    let even_poly: Vec<_> = even_poly.into_iter().map(|(_, x)| x.clone()).collect();
+    let odd_poly: Vec<_> = odd_poly.into_iter().map(|(_, x)| x.clone()).collect();
+
+    // Recursively call to calculate the fft of the even and odd polynomials
+    let (y_even, y_odd) = (
+        recursive_ifft(even_poly.as_ref()),
+        recursive_ifft(odd_poly.as_ref()),
+    );
+
+    // Calculate fft from recursive result
+    let mut y = vec![FieldElement::<F>::zero(); n];
+    let half_n = n / 2;
+
+    // Get nth root of unity for field F
+    let w = F::get_primitive_root_of_unity(n.trailing_zeros() as u64)
+        .unwrap()
+        .inv();
+
+    for i in 0..half_n {
+        y[i] = &y_even[i] + &w.pow(i) * &y_odd[i];
+        y[i + half_n] = &y_even[i] - &w.pow(i) * &y_odd[i];
+    }
+
+    y
+}
+
+pub fn ifft<F: IsTwoAdicField>(input: &[FieldElement<F>]) -> Vec<FieldElement<F>> {
+    recursive_ifft(input)
+        .iter()
+        .map(|x| x / FieldElement::from(input.len() as u64))
+        .collect()
+}
+
 #[cfg(not(feature = "metal"))]
 #[cfg(test)]
 mod u64_field_tests {
@@ -318,8 +363,8 @@ mod u256_two_adic_prime_field_tests {
     };
 
     use crate::{
-        ops::fft,
-        polynomial::{field_supports_metal, FFTPoly},
+        ops::{fft, inverse_fft},
+        polynomial::{field_supports_metal, ifft, FFTPoly},
         roots_of_unity::get_powers_of_primitive_root,
     };
 
@@ -379,5 +424,17 @@ mod u256_two_adic_prime_field_tests {
         let expected = fft(input.as_ref()).unwrap();
 
         assert_eq!(res, expected);
+    }
+
+    #[test]
+    fn test_recursive_ifft() {
+        let input: Vec<_> = (0..(1 << 8))
+            .map(|_| FieldElement::<Stark252PrimeField>::from(rand::random::<u64>()))
+            .collect();
+
+        let expected = inverse_fft(input.as_ref()).unwrap();
+        let result = ifft(input.as_ref());
+
+        assert_eq!(expected, result);
     }
 }
