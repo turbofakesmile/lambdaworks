@@ -7,8 +7,12 @@ use functions::stark::{
     generate_fib_proof_params, generate_quadratic_proof_params,
 };
 use lambdaworks_stark::{
-    air::{context::ProofOptions, example::cairo},
+    air::{
+        context::ProofOptions,
+        example::cairo::{self, PublicInputs},
+    },
     prover::prove,
+    FE,
 };
 
 mod functions;
@@ -22,7 +26,13 @@ pub fn artificial_trace_proofs(c: &mut Criterion) {
         let (trace, fibonacci_air) = generate_fib_proof_params(trace_length);
         group.throughput(Throughput::Elements(trace_length as u64));
         group.bench_function(BenchmarkId::new("fibonacci/simple", trace_length), |b| {
-            b.iter(|| black_box(prove(black_box(&trace), black_box(&fibonacci_air))));
+            b.iter(|| {
+                black_box(prove(
+                    black_box(&trace),
+                    black_box(&fibonacci_air),
+                    black_box(&mut ()),
+                ))
+            });
         });
     }
 
@@ -30,18 +40,36 @@ pub fn artificial_trace_proofs(c: &mut Criterion) {
         let (trace, fibonacci_air) = generate_fib_2_cols_proof_params(trace_length);
         group.throughput(Throughput::Elements(trace_length as u64));
         group.bench_function(BenchmarkId::new("fibonacci/2cols", trace_length), |b| {
-            b.iter(|| black_box(prove(black_box(&trace), black_box(&fibonacci_air))));
+            b.iter(|| {
+                black_box(prove(
+                    black_box(&trace),
+                    black_box(&fibonacci_air),
+                    black_box(&mut ()),
+                ))
+            });
         });
     }
 
     let (trace, fibonacci_air) = generate_fib17_proof_params(4);
     group.bench_function("fibonacci/F17", |b| {
-        b.iter(|| black_box(prove(black_box(&trace), black_box(&fibonacci_air))));
+        b.iter(|| {
+            black_box(prove(
+                black_box(&trace),
+                black_box(&fibonacci_air),
+                black_box(&mut ()),
+            ))
+        });
     });
 
     let (trace, fibonacci_air) = generate_quadratic_proof_params(16);
     group.bench_function("quadratic_air", |b| {
-        b.iter(|| black_box(prove(black_box(&trace), black_box(&fibonacci_air))));
+        b.iter(|| {
+            black_box(prove(
+                black_box(&trace),
+                black_box(&fibonacci_air),
+                black_box(&mut ()),
+            ))
+        });
     });
 }
 
@@ -72,12 +100,31 @@ fn run_cairo_bench(group: &mut BenchmarkGroup<'_, WallTime>, benchname: &str, fi
                 fri_number_of_queries,
                 coset_offset: 3,
             };
-            let cairo_air = cairo::CairoAIR::new(proof_options, &trace.0);
+            let cairo_air =
+                cairo::CairoAIR::new(proof_options, trace.0.rows.len() * 2, trace.0.steps());
+
+            let mut public_input = PublicInputs {
+                pc_init: FE::from(trace.0.rows[0].pc),
+                ap_init: FE::from(trace.0.rows[0].ap),
+                fp_init: FE::from(trace.0.rows[0].fp),
+                pc_final: FE::zero(),
+                ap_final: FE::zero(),
+                num_steps: trace.0.steps(),
+                program: Vec::new(),
+                range_check_min: None,
+                range_check_max: None,
+            };
 
             let name = format!("{benchname}_b{blowup_factor}_q{fri_number_of_queries})");
 
             group.bench_function(name, |bench| {
-                bench.iter(|| black_box(prove(black_box(&trace), black_box(&cairo_air))));
+                bench.iter(|| {
+                    black_box(prove(
+                        black_box(&trace),
+                        black_box(&cairo_air),
+                        black_box(&mut public_input),
+                    ))
+                });
             });
         }
     }

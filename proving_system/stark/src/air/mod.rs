@@ -23,19 +23,26 @@ pub trait AIR: Clone {
     type Field: IsFFTField;
     type RawTrace;
     type RAPChallenges;
+    type PublicInput;
 
-    fn build_main_trace(raw_trace: &Self::RawTrace) -> TraceTable<Self::Field>;
-
-    fn build_auxiliary_trace(
-        main_trace: &TraceTable<Self::Field>,
-        rap_challenges: &Self::RAPChallenges,
+    fn build_main_trace(
+        &self,
+        raw_trace: &Self::RawTrace,
+        public_input: &mut Self::PublicInput,
     ) -> TraceTable<Self::Field>;
 
-    fn build_rap_challenges<T: Transcript>(transcript: &mut T) -> Self::RAPChallenges;
+    fn build_auxiliary_trace(
+        &self,
+        main_trace: &TraceTable<Self::Field>,
+        rap_challenges: &Self::RAPChallenges,
+        public_input: &Self::PublicInput,
+    ) -> TraceTable<Self::Field>;
 
-    fn number_auxiliary_rap_columns(&self) -> usize {
-        0
-    }
+    fn build_rap_challenges<T: Transcript>(&self, transcript: &mut T) -> Self::RAPChallenges;
+
+    fn number_auxiliary_rap_columns(&self) -> usize;
+
+    fn composition_poly_degree_bound(&self) -> usize;
 
     fn compute_transition(
         &self,
@@ -45,6 +52,7 @@ pub trait AIR: Clone {
     fn boundary_constraints(
         &self,
         rap_challenges: &Self::RAPChallenges,
+        public_input: &Self::PublicInput,
     ) -> BoundaryConstraints<Self::Field>;
     fn transition_divisors(&self) -> Vec<Polynomial<FieldElement<Self::Field>>> {
         let trace_length = self.context().trace_length;
@@ -63,8 +71,7 @@ pub trait AIR: Clone {
             // X^(trace_length) - 1
             let roots_of_unity_vanishing_polynomial = &x_n - FieldElement::one();
 
-            let mut exemptions_polynomial =
-                Polynomial::new_monomial(FieldElement::<Self::Field>::one(), 0);
+            let mut exemptions_polynomial = Polynomial::new_monomial(FieldElement::one(), 0);
 
             for i in 0..self.context().transition_exemptions[transition_idx] {
                 exemptions_polynomial =
