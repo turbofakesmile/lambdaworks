@@ -1,5 +1,6 @@
-use crate::field::{element::FieldElement, traits::IsFFTField};
+use crate::{field::{element::FieldElement, traits::IsFFTField}, gpu::cuda::field::element::CUDAFieldElement};
 use lambdaworks_gpu::cuda::abstractions::{errors::CudaError, state::CudaState};
+use cudarc::{driver::{LaunchConfig}};
 
 /// Executes parallel ordered FFT over a slice of two-adic field elements, in CUDA.
 /// Twiddle factors are required to be in bit-reverse order.
@@ -17,14 +18,29 @@ where
     F: IsFFTField,
     F::BaseType: Unpin,
 {
-    let mut function = state.get_radix2_dit_butterfly(input, twiddles)?;
+    let function = state.get_function(F::field_name(), "radix2_dit_butterfly")?;
+
+    let input = input.iter().map(CUDAFieldElement::from).collect();
+    let twiddles = twiddles.iter().map(CUDAFieldElement::from).collect();
+
+    let input_buffer = state.alloc_buffer_with_data(input)?;
+    let twiddles_buffer = state.alloc_buffer_with_data(twiddles)?;
 
     let order = input.len().trailing_zeros();
     for stage in 0..order {
         let group_count = 1 << stage;
         let group_size = input.len() / group_count;
 
-        function.launch(group_count, group_size)?;
+        let config = LaunchConfig {
+            grid_dim: (group_count, 1, 1),
+            block_dim: (group_size / 2, 1, 1),
+            shader_mem_bytes: 0,
+        };
+
+        unsafe {
+            function.launch(config, (&mut input_buffer, &twiddles_buffer))
+        }
+        .map_err(|err| CudaError::Launch(err.to_string()))
     }
 
     let mut output = function.retrieve_result()?;
