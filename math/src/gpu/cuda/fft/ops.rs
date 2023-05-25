@@ -1,6 +1,10 @@
-use crate::{field::{element::FieldElement, traits::IsFFTField}, gpu::cuda::field::element::CUDAFieldElement};
+use crate::{
+    fft::errors::FFTError,
+    field::{element::FieldElement, traits::IsFFTField},
+    gpu::cuda::field::element::CUDAFieldElement,
+};
+use cudarc::driver::{LaunchAsync, LaunchConfig};
 use lambdaworks_gpu::cuda::abstractions::{errors::CudaError, state::CudaState};
-use cudarc::{driver::{LaunchConfig}};
 
 /// Executes parallel ordered FFT over a slice of two-adic field elements, in CUDA.
 /// Twiddle factors are required to be in bit-reverse order.
@@ -13,18 +17,23 @@ pub fn fft<F>(
     input: &[FieldElement<F>],
     twiddles: &[FieldElement<F>],
     state: &CudaState,
-) -> Result<Vec<FieldElement<F>>, CudaError>
+) -> Result<Vec<FieldElement<F>>, FFTError>
 where
     F: IsFFTField,
     F::BaseType: Unpin,
 {
+    // TODO: make a twiddle factor abstraction for handling invalid twiddles
+    if !input.len().is_power_of_two() {
+        return Err(FFTError::InputError(input.len()));
+    }
+
     let function = state.get_function(F::field_name(), "radix2_dit_butterfly")?;
 
-    let input = input.iter().map(CUDAFieldElement::from).collect();
-    let twiddles = twiddles.iter().map(CUDAFieldElement::from).collect();
+    let input: Vec<_> = input.iter().map(CUDAFieldElement::from).collect();
+    let twiddles: Vec<_> = twiddles.iter().map(CUDAFieldElement::from).collect();
 
-    let input_buffer = state.alloc_buffer_with_data(input)?;
-    let twiddles_buffer = state.alloc_buffer_with_data(twiddles)?;
+    let mut input_buffer = state.alloc_buffer_with_data(&input)?;
+    let twiddles_buffer = state.alloc_buffer_with_data(&twiddles)?;
 
     let order = input.len().trailing_zeros();
     for stage in 0..order {
@@ -32,18 +41,24 @@ where
         let group_size = input.len() / group_count;
 
         let config = LaunchConfig {
-            grid_dim: (group_count, 1, 1),
-            block_dim: (group_size / 2, 1, 1),
-            shader_mem_bytes: 0,
+            grid_dim: (group_count as u32, 1, 1),
+            block_dim: (group_size as u32 / 2, 1, 1),
+            shared_mem_bytes: 0,
         };
 
         unsafe {
-            function.launch(config, (&mut input_buffer, &twiddles_buffer))
+            function
+                .clone()
+                .launch(config, (&mut input_buffer, &twiddles_buffer))
         }
-        .map_err(|err| CudaError::Launch(err.to_string()))
+        .map_err(|err| CudaError::Launch(err.to_string()))?;
     }
 
-    let mut output = function.retrieve_result()?;
+    let mut output: Vec<FieldElement<F>> = state
+        .retrieve_result(input_buffer)?
+        .into_iter()
+        .map(FieldElement::from)
+        .collect();
 
     in_place_bit_reverse_permute(&mut output);
     Ok(output)
