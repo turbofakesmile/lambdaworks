@@ -216,6 +216,7 @@ pub trait IsPrimeField: IsField {
         let one = Self::one();
         while !Self::eq(&t, &one) {
             // Invariants here:
+            // c^{2^{m-1}} = -1,
             // t^{2^{m-1}} = 1,
             // t != 1
             // These imply that m > 1
