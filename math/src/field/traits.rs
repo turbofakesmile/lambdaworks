@@ -173,10 +173,12 @@ pub trait IsPrimeField: IsField {
             LegendreSymbol::One => (),
         };
 
+
+        // The values s and q computed below satisfy
+        // p-1 = q * 2^s
         let integer_one = Self::RepresentativeType::from(1_u16);
         let mut s: usize = 0;
         let mut q = Self::modulus_minus_one();
-
         while q & integer_one != integer_one {
             s += 1;
             q = q >> 1;
@@ -192,12 +194,35 @@ pub trait IsPrimeField: IsField {
             Self::pow(&non_qr, q)
         };
 
+
         let mut x = Self::pow(a, (q + integer_one) >> 1);
         let mut t = Self::pow(a, q);
         let mut m = s;
+        // At this point the value `t` satisfies:
+        // t^{2^{m - 1}} = a^{q * 2^{s-1}}
+        //               = a^{q * 2^s / 2 }
+        //               = q^{(p-1)/2}
+        //               = 1.
+        // The last equality holds here since `a` is 
+        // a quadratic residue (Its Legendre symbol is 1).
+
+        // Also c^{2^{m-1}} = ((non_qr)^q)^{2^{m-1}}
+        //                  = (non_qr)^{q * 2^{s-1}}
+        //                  = (non_qr)^{(p-1) / 2}
+        //                  = -1
+        // The last equality holds since `non_qr` is a
+        // quadratic non residue
 
         let one = Self::one();
         while !Self::eq(&t, &one) {
+            // Invariants here:
+            // t^{2^{m-1}} = 1,
+            // t != 1
+            // These imply that m > 1
+
+            // Given the above invariants. The number
+            // `i` computed below must be in the range [1, m-1]
+            // and satisfy t^{2^i} = 1 and t^{2^{i-1}} = -1
             let i = {
                 let mut i = 0;
                 let mut t = t.clone();
@@ -209,12 +234,17 @@ pub trait IsPrimeField: IsField {
                 i + 1
             };
 
+            // The following value satisfies
+            // b^{2^i} = c^{2^{m-1}} = -1
             let b = Self::pow(&c, 1usize << (m - i - 1));
 
-            c = Self::mul(&b, &b);
-            x = Self::mul(&x, &b);
-            t = Self::mul(&t, &c);
-            m = i;
+            c = Self::mul(&b, &b); // C
+            x = Self::mul(&x, &b); // X
+            t = Self::mul(&t, &c); // T
+            m = i; // M
+            // With these updated values C, X, T and M:
+            // C^{2^{M-1}} = (b^2)^{2^{i-1}} = b^{2^i} = -1
+            // T^{2^{M-1}} = (tC)^{2^{M-1}} = t^{2^{i-1}} C^{2^{M-1}} = (-1)(-1) = 1
         }
 
         let neg_x = Self::neg(&x);
