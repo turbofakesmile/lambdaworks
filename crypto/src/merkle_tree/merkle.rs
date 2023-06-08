@@ -1,11 +1,3 @@
-use std::marker::PhantomData;
-
-use lambdaworks_math::{
-    field::{element::FieldElement, traits::IsField},
-    traits::ByteConversion,
-};
-use sha3::{Digest, Sha3_256};
-
 use super::{proof::Proof, traits::IsMerkleTreeBackend, utils::*};
 
 #[derive(Clone)]
