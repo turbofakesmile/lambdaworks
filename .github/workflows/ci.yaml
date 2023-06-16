@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches: CI-test
   pull_request:
     branches: ["*"]
 
@@ -101,13 +101,6 @@ jobs:
         with:
           toolchain: stable
           components: clippy
-
-      - uses: Jimver/cuda-toolkit@v0.2.10
-        id: cuda-toolkit
-        with:
-          cuda: '12.1.0'
-          sub-packages: '["nvcc"]'
-          method: 'network'
 
       - name: Run clippy
         run: make clippy-cuda
