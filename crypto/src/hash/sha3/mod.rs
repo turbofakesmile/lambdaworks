@@ -1,4 +1,4 @@
-use sha3::{Digest, Sha3_256};
+use sha3::{Digest, Sha3_512};
 
 pub struct Sha3Hasher;
 
@@ -10,7 +10,7 @@ impl Sha3Hasher {
     }
 
     pub fn expand_message(msg: &[u8], dst: &[u8], len_in_bytes: u64) -> Result<Vec<u8>, String> {
-        let b_in_bytes = Sha3_256::output_size() as u64;
+        let b_in_bytes = Sha3_512::output_size() as u64;
 
         let ell = (len_in_bytes + b_in_bytes - 1) / b_in_bytes;
         if ell > 255 {
@@ -28,16 +28,16 @@ impl Sha3Hasher {
             dst_prime.clone(),
         ]
         .concat();
-        let b_0: Vec<u8> = Sha3_256::digest(msg_prime).to_vec();
+        let b_0: Vec<u8> = Sha3_512::digest(msg_prime).to_vec();
         let a = [b_0.clone(), Self::i2osp(1, 1), dst_prime.clone()].concat();
-        let b_1 = Sha3_256::digest(a).to_vec();
+        let b_1 = Sha3_512::digest(a).to_vec();
 
         let mut b_vals = Vec::<Vec<u8>>::with_capacity(ell as usize * b_in_bytes as usize);
         b_vals.push(b_1);
         for idx in 1..ell {
             let aux = Self::strxor(&b_0, &b_vals[idx as usize - 1]);
             let b_i = [aux, Self::i2osp(idx, 1), dst_prime.clone()].concat();
-            b_vals.push(Sha3_256::digest(b_i).to_vec());
+            b_vals.push(Sha3_512::digest(b_i).to_vec());
         }
 
         let mut b_vals = b_vals.concat();
