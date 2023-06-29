@@ -8,7 +8,7 @@ use core::ops::{
 use crate::errors::ByteConversionError;
 use crate::errors::CreationError;
 use crate::traits::ByteConversion;
-use crate::unsigned_integer::traits::IsUnsignedInteger;
+use crate::unsigned_integer::traits::{IsUnsignedInteger, U32Limbs};
 
 use core::fmt::{self, Debug, Display};
 
@@ -806,6 +806,41 @@ impl<const NUM_LIMBS: usize> ByteConversion for UnsignedInteger<NUM_LIMBS> {
 impl<const NUM_LIMBS: usize> From<UnsignedInteger<NUM_LIMBS>> for u16 {
     fn from(value: UnsignedInteger<NUM_LIMBS>) -> Self {
         value.limbs[NUM_LIMBS - 1] as u16
+    }
+}
+
+const U256_64BIT_NUM_LIMBS: usize = 4;
+const U256_32BIT_NUM_LIMBS: usize = 8;
+
+impl U32Limbs<U256_32BIT_NUM_LIMBS> for U256 {
+    fn from_u32_limbs(limbs: &[u32]) -> Self {
+        let mut limbs = limbs.to_vec();
+        limbs.reverse();
+        limbs.resize(U256_32BIT_NUM_LIMBS, 0);
+        limbs.reverse();
+
+        let mut limbs_64 = [0; U256_64BIT_NUM_LIMBS];
+
+        for (i, pair) in limbs.chunks(2).enumerate() {
+            let high = pair[0];
+            let low = pair[1];
+            let limb = ((high as u64) << 32) + (low as u64);
+            limbs_64[i] = limb;
+        }
+
+        UnsignedInteger::from_limbs(limbs_64)
+    }
+
+    fn to_u32_limbs(&self) -> Vec<u32> {
+        let mut limbs_32 = vec![];
+        for limb in self.limbs {
+            let high = (limb >> 32) as u32;
+            let low = limb as u32;
+            limbs_32.push(high);
+            limbs_32.push(low);
+        }
+
+        limbs_32
     }
 }
 

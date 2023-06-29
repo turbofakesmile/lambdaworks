@@ -4,6 +4,7 @@ use crate::{
         traits::{IsFFTField, RootsConfig},
     },
     polynomial::Polynomial,
+    unsigned_integer::traits::U32Limbs,
 };
 use lambdaworks_gpu::metal::abstractions::{errors::MetalError, state::MetalState};
 
@@ -19,6 +20,21 @@ where
     let twiddles = gen_twiddles(order.into(), RootsConfig::BitReverse, &state)?;
 
     fft(coeffs, &twiddles, &state)
+}
+
+pub fn evaluate_fft_metal_new<F>(
+    coeffs: &[FieldElement<F>],
+) -> Result<Vec<FieldElement<F>>, MetalError>
+where
+    F: IsFFTField,
+    F::BaseType: U32Limbs<8>,
+{
+    let state = MetalState::new(None)?;
+
+    let order = coeffs.len().trailing_zeros();
+    let twiddles = gen_twiddles(order.into(), RootsConfig::BitReverse, &state)?;
+
+    fft_new(coeffs, &twiddles, &state)
 }
 
 /// Returns a new polynomial that interpolates `fft_evals`, which are evaluations using twiddle

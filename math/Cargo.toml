@@ -32,7 +32,7 @@ iai-callgrind.workspace = true
 
 [features]
 rayon = ["dep:rayon"]
-default = ["rayon", "std"]
+default = ["rayon", "std", "metal"]
 std = ["dep:thiserror"]
 
 # gpu

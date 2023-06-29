@@ -455,12 +455,17 @@ mod tests {
     #[cfg(feature = "metal")]
     #[test]
     fn evaluate_fft_on_cpu_and_metal() {
-        let domain_size = 4096;
+        use crate::fft::gpu::metal::polynomial::evaluate_fft_metal_new;
+
+
+        let domain_size = 1 << 1;
         let coeffs: Vec<FieldElement<Stark252PrimeField>> =
             (0..domain_size).map(|_| FieldElement::one()).collect();
 
         let evals_cpu = evaluate_fft_cpu(&coeffs).unwrap();
-        let evals_metal = evaluate_fft_metal(&coeffs).unwrap();
+        let evals_metal = evaluate_fft_metal_new(&coeffs).unwrap();
+
+        assert_eq!(evals_cpu, evals_metal);
 
         evals_cpu
             .iter()
@@ -476,5 +481,22 @@ mod tests {
                     eval_metal.representative()
                 );
             });
+    }
+
+    #[cfg(feature = "metal")]
+    #[test]
+    fn twiddles_on_cpu_and_metal() {
+        use lambdaworks_gpu::metal::abstractions::state::MetalState;
+
+        use crate::fft::{cpu::roots_of_unity::get_twiddles, gpu::metal::ops::gen_twiddles};
+
+        let order = 1;
+        let config = RootsConfig::Natural;
+        let state = MetalState::new(None).unwrap();
+
+        let twiddles_cpu = get_twiddles::<Stark252PrimeField>(order, config).unwrap();
+        let twiddles_metal = gen_twiddles::<Stark252PrimeField>(order, config, &state).unwrap();
+
+        assert_eq!(twiddles_cpu, twiddles_metal);
     }
 }

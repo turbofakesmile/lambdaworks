@@ -1,6 +1,10 @@
-use crate::field::{
-    element::FieldElement,
-    traits::{IsFFTField, RootsConfig},
+use crate::{
+    fft::bit_reversing::in_place_bit_reverse_permute,
+    field::{
+        element::FieldElement,
+        traits::{IsFFTField, RootsConfig},
+    },
+    unsigned_integer::traits::U32Limbs,
 };
 use lambdaworks_gpu::metal::abstractions::{errors::MetalError, state::*};
 
@@ -55,6 +59,64 @@ pub fn fft<F: IsFFTField>(
     let result = MetalState::retrieve_contents(&input_buffer);
     let result = bitrev_permutation::<F, _>(&result, state)?;
     Ok(result.iter().map(FieldElement::from_raw).collect())
+}
+
+pub fn fft_new<F: IsFFTField>(
+    input: &[FieldElement<F>],
+    twiddles: &[FieldElement<F>],
+    state: &MetalState,
+) -> Result<Vec<FieldElement<F>>, MetalError>
+where
+    F::BaseType: U32Limbs<8>,
+{
+    // TODO: make a twiddle factor abstraction for handling invalid twiddles
+    if !input.len().is_power_of_two() {
+        return Err(MetalError::InputError(input.len()));
+    }
+
+    let pipeline = state.setup_pipeline(&format!("radix2_dit_butterfly_{}", F::field_name()))?;
+
+    let input_limbs = input
+        .iter()
+        .flat_map(|e| e.value().to_u32_limbs())
+        .collect::<Vec<u32>>();
+    let twiddles_limbs = twiddles
+        .iter()
+        .flat_map(|e| e.value().to_u32_limbs())
+        .collect::<Vec<u32>>();
+
+    let input_buffer = state.alloc_buffer_data(&input_limbs);
+    let twiddles_buffer = state.alloc_buffer_data(&twiddles_limbs);
+    // TODO: twiddle factors security (right now anything can be passed as twiddle factors)
+
+    objc::rc::autoreleasepool(|| {
+        let (command_buffer, command_encoder) = state.setup_command(
+            &pipeline,
+            Some(&[(0, &input_buffer), (1, &twiddles_buffer)]),
+        );
+
+        let order = input.len().trailing_zeros();
+        for stage in 0..order {
+            let group_count = 1 << stage;
+            let group_size = input.len() as u64 / group_count;
+
+            let threadgroup_size = MTLSize::new(group_size / 2, 1, 1);
+            let threadgroup_count = MTLSize::new(group_count, 1, 1);
+            command_encoder.dispatch_thread_groups(threadgroup_count, threadgroup_size);
+        }
+        command_encoder.end_encoding();
+
+        command_buffer.commit();
+        command_buffer.wait_until_completed();
+    });
+
+    Ok({
+        let limbs = MetalState::retrieve_contents(&input_buffer);
+        let mut result = F::BaseType::from_flat_u32_limbs(&limbs);
+        in_place_bit_reverse_permute(&mut result);
+
+        result.iter().map(FieldElement::from_raw).collect()
+    })
 }
 
 /// Generates 2^{`order-1`} twiddle factors in parallel, with a certain `config`, in Metal.
