@@ -5,3 +5,5 @@
 // than headers and a unique source.
 
 #include "shaders/field/stark256.h.metal"
+#include "shaders/tests/test_u256.h.metal"
+#include "shaders/tests/test_starkfield.h.metal"

@@ -457,7 +457,6 @@ mod tests {
     fn evaluate_fft_on_cpu_and_metal() {
         use crate::fft::gpu::metal::polynomial::evaluate_fft_metal_new;
 
-
         let domain_size = 1 << 1;
         let coeffs: Vec<FieldElement<Stark252PrimeField>> =
             (0..domain_size).map(|_| FieldElement::one()).collect();

@@ -1,5 +1,5 @@
 use crate::{
-    fft::bit_reversing::in_place_bit_reverse_permute,
+    fft::cpu::bit_reversing::in_place_bit_reverse_permute,
     field::{
         element::FieldElement,
         traits::{IsFFTField, RootsConfig},
