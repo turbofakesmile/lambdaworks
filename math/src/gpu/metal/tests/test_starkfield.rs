@@ -15,6 +15,8 @@ mod tests {
     pub type FE = FieldElement<F>;
     pub type U = U256; // F::BaseType
 
+    pub const NUM_LIMBS: usize = 8;
+
     mod u256_tests {
         use super::*;
 
@@ -96,7 +98,7 @@ mod tests {
             }
 
             #[test]
-            fn prod(a in rand_u(), b in rand_u()) {
+            fn mul(a in rand_u(), b in rand_u()) {
                 objc::rc::autoreleasepool(|| {
                     let result = execute_kernel("test_mul_u256", (a, Big(b)));
                     prop_assert_eq!(result, a * b);
@@ -107,7 +109,7 @@ mod tests {
             #[test]
             fn shl(a in rand_u(), b in any::<usize>()) {
                 objc::rc::autoreleasepool(|| {
-                    let b = b % 256; // so it doesn't overflow
+                    let b = b % (NUM_LIMBS * 32); // so it doesn't overflow
                     let result = execute_kernel("test_shl_u256", (a, Small(b)));
                     prop_assert_eq!(result, a << b);
                     Ok(())
@@ -117,7 +119,7 @@ mod tests {
             #[test]
             fn shr(a in rand_u(), b in any::<usize>()) {
                 objc::rc::autoreleasepool(|| {
-                    let b = b % 256; // so it doesn't overflow
+                    let b = b % (NUM_LIMBS * 32); // so it doesn't overflow
                     let result = execute_kernel("test_shr_u256", (a, Small(b)));
                     prop_assert_eq!(result, a >> b);
                     Ok(())
@@ -143,7 +145,7 @@ mod tests {
             // conversion needed because of possible difference of endianess between host and
             // device (Metal's UnsignedInteger has 32bit limbs).
             let a = a.value().to_u32_limbs();
-            let result_buffer = state.alloc_buffer::<u32>(12);
+            let result_buffer = state.alloc_buffer::<u32>(NUM_LIMBS);
 
             let (command_buffer, command_encoder) = match b {
                 FEOrInt::Elem(b) => {
@@ -185,7 +187,7 @@ mod tests {
         }
 
         prop_compose! {
-            fn rand_limbs()(vec in collection::vec(rand_u32(), 12)) -> Vec<u32> {
+            fn rand_limbs()(vec in collection::vec(rand_u32(), NUM_LIMBS)) -> Vec<u32> {
                 vec
             }
         }

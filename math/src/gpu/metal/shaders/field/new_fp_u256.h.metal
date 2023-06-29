@@ -8,10 +8,10 @@ namespace {
 
 // taken from the Rust implementation
 constexpr static const constant uu256 N = {
-    0x8000000,0x11,
-    0x0,0x0,
-    0x0,0x0,
-    0x0,0x1
+    0x08000000,0x00000011,
+    0x00000000,0x00000000,
+    0x00000000,0x00000000,
+    0x00000000,0x00000001
 };
 constexpr static const constant uu256 R_SQUARED = {
     0x07FFD4AB,0x5E008810,
@@ -90,7 +90,7 @@ public:
         return ONE;
     }
 
-    constexpr NewFp256 to_montgomery()
+    constexpr NewFp256 to_montgomery() const
     {
         return mul(inner, R_SQUARED);
     }
