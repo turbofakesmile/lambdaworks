@@ -13,6 +13,7 @@ lambdaworks-math = { path = "../math", features = ["metal"] }
 lambdaworks-gpu = { path = "../gpu", features = ["metal"] }
 num-traits = "0.2"
 ibig = "0.3.6"
+metal = "0.24.0"
 
 # Prevent this from interfering with workspaces
 [workspace]
