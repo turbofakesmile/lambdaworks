@@ -4,7 +4,7 @@
 #include "../fields/unsigned_int.h.metal"
 
 namespace {
-    typedef UnsignedInteger<12> u384;
+    typedef UnsignedInteger<8> u384;
     typedef FpBLS12381 FE;
     typedef ECPoint<FE, 0> Point;
 }

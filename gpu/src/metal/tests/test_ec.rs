@@ -5,18 +5,21 @@ mod tests {
     use lambdaworks_math::elliptic_curve::short_weierstrass::curves::bls12_381::curve::BLS12381Curve;
     use lambdaworks_math::elliptic_curve::short_weierstrass::curves::bls12_381::field_extension::BLS12381PrimeField;
     use lambdaworks_math::elliptic_curve::short_weierstrass::point::ShortWeierstrassProjectivePoint;
+    use lambdaworks_math::field::fields::fft_friendly::stark_252_prime_field::Stark252PrimeField;
     use lambdaworks_math::elliptic_curve::traits::IsEllipticCurve;
     use lambdaworks_math::field::element::FieldElement;
-    use lambdaworks_math::unsigned_integer::element::U384;
+    use lambdaworks_math::unsigned_integer::element::{U256, U384};
     use metal::MTLSize;
     use proptest::prelude::*;
 
-    pub type F = BLS12381PrimeField;
+    pub type F = Stark252PrimeField;
     pub type FE = FieldElement<F>;
-    pub type U = U384; // F::BaseType
 
     mod unsigned_int_tests {
         use super::*;
+        use proptest::collection;
+        pub type U = U256; // F::BaseType
+        const NUM_LIMBS: usize = 8;
 
         enum BigOrSmallInt {
             Big(U),
@@ -68,7 +71,15 @@ mod tests {
         }
 
         prop_compose! {
-            fn rand_u()(n in any::<u128>()) -> U { U::from_u128(n) } // doesn't populate all limbs
+            fn rand_limbs()(vec in collection::vec(any::<u32>(), NUM_LIMBS)) -> Vec<u32> {
+                vec
+            }
+        }
+
+        prop_compose! {
+            fn rand_u()(limbs in rand_limbs()) -> U {
+                U::from_u32_limbs(&limbs)
+            }
         }
 
         use lambdaworks_math::unsigned_integer::traits::U32Limbs;
@@ -76,6 +87,7 @@ mod tests {
 
         proptest! {
             #[test]
+            #[should_panic(expected = "UnsignedInteger addition overflow.")]
             fn add(a in rand_u(), b in rand_u()) {
                 objc::rc::autoreleasepool(|| {
                     let result = execute_kernel("test_uint_add", (a, Big(b)));
@@ -85,6 +97,7 @@ mod tests {
             }
 
             #[test]
+            #[should_panic(expected = "UnsignedInteger subtraction overflow.")]
             fn sub(a in rand_u(), b in rand_u()) {
                 objc::rc::autoreleasepool(|| {
                     let a = std::cmp::max(a, b);
@@ -97,6 +110,7 @@ mod tests {
             }
 
             #[test]
+            #[should_panic(expected = "UnsignedInteger multiplication overflow.")]
             fn prod(a in rand_u(), b in rand_u()) {
                 objc::rc::autoreleasepool(|| {
                     let result = execute_kernel("test_uint_prod", (a, Big(b)));
@@ -106,6 +120,7 @@ mod tests {
             }
 
             #[test]
+            #[should_panic(expected = "UnsignedInteger shift left overflows.")]
             fn shl(a in rand_u(), b in any::<usize>()) {
                 objc::rc::autoreleasepool(|| {
                     let b = b % 384; // so it doesn't overflow
@@ -116,6 +131,7 @@ mod tests {
             }
 
             #[test]
+            #[should_panic(expected = "UnsignedInteger shift right overflows.")]
             fn shr(a in rand_u(), b in any::<usize>()) {
                 objc::rc::autoreleasepool(|| {
                     let b = b % 384; // so it doesn't overflow
@@ -132,6 +148,8 @@ mod tests {
         use proptest::collection;
 
         use super::*;
+        pub type U = U256; // F::BaseType
+        const NUM_LIMBS: usize = 8;
 
         enum FEOrInt {
             Elem(FE),
@@ -145,7 +163,7 @@ mod tests {
             // conversion needed because of possible difference of endianess between host and
             // device (Metal's UnsignedInteger has 32bit limbs).
             let a = a.value().to_u32_limbs();
-            let result_buffer = state.alloc_buffer::<u32>(12);
+            let result_buffer = state.alloc_buffer::<U>(1);
 
             let (command_buffer, command_encoder) = match b {
                 FEOrInt::Elem(b) => {
@@ -182,23 +200,89 @@ mod tests {
             FE::from_raw(&U::from_u32_limbs(&limbs))
         }
 
-        prop_compose! {
-            fn rand_u32()(n in any::<u32>()) -> u32 { n }
+        fn execute_kernel_bytes(name: &str, a: &FE, b: FEOrInt) -> Vec<u8> {
+            let state = MetalState::new(None).unwrap();
+            let pipeline = state.setup_pipeline(name).unwrap();
+
+            // conversion needed because of possible difference of endianess between host and
+            // device (Metal's UnsignedInteger has 32bit limbs).
+            let a = a.value().to_u32_limbs();
+            let result_buffer = state.alloc_buffer::<U>(1);
+
+            let (command_buffer, command_encoder) = match b {
+                FEOrInt::Elem(b) => {
+                    let b = b.value().to_u32_limbs();
+                    let a_buffer = state.alloc_buffer_data(&a);
+                    let b_buffer = state.alloc_buffer_data(&b);
+
+                    state.setup_command(
+                        &pipeline,
+                        Some(&[(0, &a_buffer), (1, &b_buffer), (2, &result_buffer)]),
+                    )
+                }
+                FEOrInt::Int(b) => {
+                    let a_buffer = state.alloc_buffer_data(&a);
+                    let b_buffer = state.alloc_buffer_data(&[b]);
+
+                    state.setup_command(
+                        &pipeline,
+                        Some(&[(0, &a_buffer), (1, &b_buffer), (2, &result_buffer)]),
+                    )
+                }
+            };
+
+            let threadgroup_size = MTLSize::new(1, 1, 1);
+            let threadgroup_count = MTLSize::new(1, 1, 1);
+
+            command_encoder.dispatch_thread_groups(threadgroup_count, threadgroup_size);
+            command_encoder.end_encoding();
+
+            command_buffer.commit();
+            command_buffer.wait_until_completed();
+
+            let bytes = MetalState::retrieve_contents::<u8>(&result_buffer);
+            bytes
         }
 
         prop_compose! {
-            fn rand_limbs()(vec in collection::vec(rand_u32(), 12)) -> Vec<u32> {
+            fn rand_limbs()(vec in collection::vec(any::<u32>(), NUM_LIMBS)) -> Vec<u32> {
                 vec
             }
         }
 
         prop_compose! {
             fn rand_felt()(limbs in rand_limbs()) -> FE {
-                FE::from(&U384::from_u32_limbs(&limbs))
+                FE::from(&U::from_u32_limbs(&limbs))
             }
         }
 
         use FEOrInt::{Elem, Int};
+
+        #[test]
+        fn single_mul() {
+            let a = FE::from(1);
+            let b = FE::from(2);
+            objc::rc::autoreleasepool(|| {
+                let result = execute_kernel("fp_bls12381_mul", &a, Elem(b.clone()));
+                assert_eq!(result.value().to_u32_limbs(), (a * b).value().to_u32_limbs());
+            });
+        }
+
+        #[test]
+        fn single_mul_bytes() {
+            let a = FE::from(1);
+            let b = FE::from(2);
+            objc::rc::autoreleasepool(|| {
+                let result = execute_kernel_bytes("fp_bls12381_mul", &a, Elem(b.clone()));
+                let expected: Vec<_> = (a*b)
+                    .value()
+                    .to_u32_limbs()
+                    .iter()
+                    .flat_map(|u| u.to_le_bytes())
+                    .collect();
+                assert_eq!(result, expected);
+            });
+        }
 
         proptest! {
             #[test]
@@ -222,14 +306,14 @@ mod tests {
             #[test]
             fn mul(a in rand_felt(), b in rand_felt()) {
                 objc::rc::autoreleasepool(|| {
-                    let result = execute_kernel("fp_bls12381_mul", &a, Elem(b.clone()));
-                    prop_assert_eq!(result, a * b);
+                    let result = execute_kernel("fp_bls12381_mul", &a, Elem(a.clone()));
+                    prop_assert_eq!(result, a.clone() * a.clone());
                     Ok(())
                 }).unwrap();
             }
 
             #[test]
-            fn pow(a in rand_felt(), b in rand_u32()) {
+            fn pow(a in rand_felt(), b in any::<u32>()) {
                 objc::rc::autoreleasepool(|| {
                     let result = execute_kernel("fp_bls12381_pow", &a, Int(b));
                     prop_assert_eq!(result, a.pow(b));

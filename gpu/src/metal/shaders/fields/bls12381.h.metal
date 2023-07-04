@@ -6,7 +6,7 @@
 
 namespace {
     typedef ECPoint<FpBLS12381, 0> BLS12381;
-    typedef UnsignedInteger<12> u384;
+    typedef UnsignedInteger<8> u384;
 }
 
 template [[ host_name("bls12381_add") ]]
