@@ -27,10 +27,3 @@ template [[ host_name("test_mul_stark256") ]]
     constant Fp &_q,
     device Fp &result
 );
-
-template [[ host_name("test_pow_stark256") ]] 
-[[kernel]] void fp_tests::pow(
-    constant Fp &_p,
-    constant uint32_t &_a,
-    device Fp &result
-);

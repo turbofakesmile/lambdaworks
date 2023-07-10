@@ -25,11 +25,8 @@ struct UnsignedInteger {
     }
 
     constexpr static UnsignedInteger from_bool(bool b) {
-        UnsignedInteger res;
-        res.m_limbs = {};
-        if (b) {
-            res.m_limbs[NUM_LIMBS - 1] = 1;
-        }
+        UnsignedInteger res {};
+        res.m_limbs[NUM_LIMBS - 1] = b ? 1 : 0;
         return res;
     }
 
@@ -74,6 +71,10 @@ struct UnsignedInteger {
         return res;
     }
 
+    constexpr uint32_t first_limb() const {
+        return this->m_limbs[NUM_LIMBS - 1];
+    }
+
     constexpr UnsignedInteger operator+(const UnsignedInteger rhs) const
     {
         metal::array<uint32_t, NUM_LIMBS> limbs {};
@@ -109,13 +110,13 @@ struct UnsignedInteger {
     constexpr UnsignedInteger operator-(const UnsignedInteger rhs) const
     {
         metal::array<uint32_t, NUM_LIMBS> limbs {};
-        uint64_t carry = 0;
+        int64_t carry = 0;
         uint64_t i = NUM_LIMBS;
 
         while (i > 0) {
             i -= 1;
-            int64_t c = (int64_t)(m_limbs[i]) - (int64_t)(rhs.m_limbs[i]) + carry;
-            limbs[i] = c & 0xFFFFFFFF;
+            int64_t c = (int64_t)(m_limbs[i]) - (int64_t)(rhs.m_limbs[i]) + (int64_t)carry;
+            limbs[i] = (uint32_t)c;
             carry = c < 0 ? -1 : 0;
         }
 
@@ -231,7 +232,7 @@ struct UnsignedInteger {
       return false;
     }
 
-    constexpr bool operator>=(const UnsignedInteger rhs) {
+    constexpr bool operator>=(const UnsignedInteger rhs) const {
       for (uint64_t i = 0; i < NUM_LIMBS; i++) {
         if (m_limbs[i] > rhs.m_limbs[i]) return true;
         if (m_limbs[i] < rhs.m_limbs[i]) return false;

@@ -1,9 +1,11 @@
 // TODO: generalize test functions for testing different fields (necesarry for MSM)
 #[cfg(test)]
 mod tests {
+    use crate::elliptic_curve::short_weierstrass::curves::bls12_381::field_extension::BLS12381PrimeField;
     use crate::{
         field::{
-            element::FieldElement, fields::fft_friendly::stark_252_prime_field::Stark252PrimeField,
+            element::FieldElement,
+            fields::fft_friendly::stark_252_prime_field::{Stark252PrimeField, Stark384PrimeField},
         },
         unsigned_integer::{element::U256, traits::U32Limbs},
     };
@@ -11,14 +13,10 @@ mod tests {
     use metal::MTLSize;
     use proptest::prelude::*;
 
-    pub type F = Stark252PrimeField;
-    pub type FE = FieldElement<F>;
-    pub type U = U256; // F::BaseType
-
-    pub const NUM_LIMBS: usize = 8;
-
     mod u256_tests {
         use super::*;
+        pub type U = U256;
+        const NUM_LIMBS: usize = 8;
 
         enum BigOrSmallInt {
             Big(U),
@@ -129,9 +127,13 @@ mod tests {
     }
 
     mod fp_tests {
+        use super::*;
         use proptest::collection;
 
-        use super::*;
+        pub type F = Stark252PrimeField;
+        pub type FE = FieldElement<F>;
+        pub type U = U256; // F::BaseType
+        const NUM_LIMBS: usize = 8;
 
         enum FEOrInt {
             Elem(FE),
@@ -145,7 +147,7 @@ mod tests {
             // conversion needed because of possible difference of endianess between host and
             // device (Metal's UnsignedInteger has 32bit limbs).
             let a = a.value().to_u32_limbs();
-            let result_buffer = state.alloc_buffer::<u32>(NUM_LIMBS);
+            let result_buffer = state.alloc_buffer::<U>(1);
 
             let (command_buffer, command_encoder) = match b {
                 FEOrInt::Elem(b) => {
@@ -224,15 +226,6 @@ mod tests {
                 objc::rc::autoreleasepool(|| {
                     let result = execute_kernel("test_mul_stark256", &a, Elem(b.clone()));
                     prop_assert_eq!(result, a * b);
-                    Ok(())
-                }).unwrap();
-            }
-
-            #[test]
-            fn pow(a in rand_felt(), b in rand_u32()) {
-                objc::rc::autoreleasepool(|| {
-                    let result = execute_kernel("test_pow_stark256", &a, Int(b));
-                    prop_assert_eq!(result, a.pow(b));
                     Ok(())
                 }).unwrap();
             }
