@@ -52,4 +52,15 @@ namespace fp_tests {
         Fp res = p.pow(a);
         result = res;
     }
+
+    template<typename Fp>
+    [[kernel]] void inv(
+        constant Fp &_p [[ buffer(0) ]],
+        device Fp &result [[ buffer(1) ]]
+    )
+    {
+        Fp p = _p;
+        Fp res = p.inv();
+        result = res;
+    }
 }

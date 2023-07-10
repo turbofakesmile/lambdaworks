@@ -95,7 +95,40 @@ public:
         return mul(inner, R_SQUARED);
     }
 
-    NewFp256 inverse() 
+    NewFp256 pow(uint32_t exponent) const
+    {
+        if (exponent == 0) {
+            return NewFp256::one();
+        } else if (exponent == 1) {
+            return *this;
+        } else {
+            NewFp256 result = *this;
+
+            while ((exponent & 1) == 0) {
+                result = result * result;
+                exponent = exponent >> 1;
+            }
+
+            if (exponent == 0) {
+                return result;
+            } else {
+                NewFp256 base = result;
+                exponent = exponent >> 1;
+
+                while (exponent != 0) {
+                    base = base * base;
+                    if ((exponent & 1) == 1) {
+                        result = result * base;
+                    }
+                    exponent = exponent >> 1;
+                }
+
+                return result;
+            }
+        }
+    }
+
+    NewFp256 inv() 
     {
         // used addchain
         // https://github.com/mmcloughlin/addchain

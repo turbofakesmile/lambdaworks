@@ -21,7 +21,7 @@ void calc_twiddles_inv(
 )
 {
     Fp omega = _omega;
-    result[index] = omega.pow(index).inverse();
+    result[index] = omega.pow(index).inv();
 }
 
 template<typename Fp>
@@ -47,6 +47,6 @@ void calc_twiddles_bitrev_inv(
 )
 {
     Fp omega = _omega;
-    result[index] =  omega.pow(reverse_index(index, size)).inverse();
+    result[index] =  omega.pow(reverse_index(index, size)).inv();
 }
 
