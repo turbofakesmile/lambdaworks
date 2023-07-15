@@ -9,6 +9,7 @@ use crate::errors::ByteConversionError;
 use crate::errors::CreationError;
 use crate::traits::ByteConversion;
 use crate::unsigned_integer::traits::IsUnsignedInteger;
+use serde::{Deserialize, Serialize};
 
 use core::fmt::{self, Debug, Display};
 
@@ -21,8 +22,9 @@ pub type U128 = UnsignedInteger<2>;
 /// The most significant bit is in the left-most position.
 /// That is, the array `[a_n, ..., a_0]` represents the
 /// integer 2^{64 * n} * a_n + ... + 2^{64} * a_1 + a_0.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct UnsignedInteger<const NUM_LIMBS: usize> {
+    #[serde(with = "serde_arrays")]
     pub limbs: [u64; NUM_LIMBS],
 }
 

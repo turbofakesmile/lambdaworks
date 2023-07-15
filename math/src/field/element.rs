@@ -7,13 +7,14 @@ use core::fmt;
 use core::fmt::Debug;
 use core::iter::Sum;
 use core::ops::{Add, AddAssign, Div, Mul, Neg, Sub};
+use serde::{Deserialize, Serialize};
 
 use super::fields::montgomery_backed_prime_fields::{IsModulus, MontgomeryBackendPrimeField};
 use super::traits::{IsPrimeField, LegendreSymbol};
 
 /// A field element with operations algorithms defined in `F`
 #[allow(clippy::derived_hash_with_manual_eq)]
-#[derive(Debug, Clone, Hash, Copy)]
+#[derive(Debug, Clone, Hash, Copy, Serialize, Deserialize)]
 pub struct FieldElement<F: IsField> {
     value: F::BaseType,
 }

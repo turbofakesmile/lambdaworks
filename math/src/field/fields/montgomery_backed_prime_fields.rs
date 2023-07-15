@@ -8,6 +8,7 @@ use crate::{
 
 use core::fmt::Debug;
 use core::marker::PhantomData;
+use serde::{Deserialize, Serialize};
 
 pub type U384PrimeField<M> = MontgomeryBackendPrimeField<M, 6>;
 pub type U256PrimeField<M> = MontgomeryBackendPrimeField<M, 4>;
@@ -19,7 +20,7 @@ pub trait IsModulus<U>: Debug {
     const MODULUS: U;
 }
 
-#[derive(Clone, Debug, Hash, Copy)]
+#[derive(Clone, Debug, Hash, Copy, Deserialize, Serialize)]
 pub struct MontgomeryBackendPrimeField<M, const NUM_LIMBS: usize> {
     phantom: PhantomData<M>,
 }
