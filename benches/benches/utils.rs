@@ -1,13 +1,29 @@
-use ark_ff::BigInt;
+use ark_ff::{BigInt, MontBackend, Fp256};
 use ark_std::UniformRand;
-use ark_test_curves::starknet_fp::Fq;
 use lambdaworks_math::{
     field::{
-        element::FieldElement, fields::fft_friendly::stark_252_prime_field::Stark252PrimeField,
+        element::FieldElement, fields::montgomery_backed_prime_fields::{IsModulus, U256PrimeField}
     },
-    unsigned_integer::element::UnsignedInteger,
+    unsigned_integer::element::{UnsignedInteger, U256},
 };
 use rand::SeedableRng;
+
+
+#[derive(ark_ff::MontConfig)]
+#[modulus = "115792089237316195423570985008687907853269984665640564039457584007913129639747"]
+#[generator = "3"]
+pub struct FqConfig;
+pub type Fq = Fp256<MontBackend<FqConfig, 4>>;
+
+
+#[derive(Clone, Debug, Hash, Copy)]
+pub struct MontgomeryConfigStark252PrimeField;
+impl IsModulus<U256> for MontgomeryConfigStark252PrimeField {
+    const MODULUS: U256 =
+        U256::from_hex_unchecked("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff43");
+}
+
+pub type Stark252PrimeField = U256PrimeField<MontgomeryConfigStark252PrimeField>;
 
 /// Creates `amount` random elements
 pub fn generate_random_elements(amount: u64) -> Vec<Fq> {
