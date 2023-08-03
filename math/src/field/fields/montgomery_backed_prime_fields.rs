@@ -112,19 +112,13 @@ where
 
     #[inline(always)]
     fn add(a: &Self::BaseType, b: &Self::BaseType) -> Self::BaseType {
-        let (sum, overflow) = UnsignedInteger::add(a, b);
-        if Self::MODULUS_HAS_ONE_SPARE_BIT {
-            if sum >= M::MODULUS {
-                sum - M::MODULUS
-            } else {
-                sum
-            }
-        } else if overflow || sum >= M::MODULUS {
-            let (diff, _) = UnsignedInteger::sub(&sum, &M::MODULUS);
-            diff
+        let (sum, _) = UnsignedInteger::add(a, b);
+        if sum >= M::MODULUS {
+            sum - M::MODULUS
         } else {
             sum
         }
+
     }
 
     #[inline(always)]
