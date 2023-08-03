@@ -20,14 +20,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
             &format!("{} 10M elements cumulative | lambdaworks", BENCHMARK_NAME,),
             |b| {
                 b.iter(|| {
-                    let mut iter = lambdaworks_vec.iter();
-                    let a = iter.next().unwrap();
-                    let b = iter.next().unwrap();
-                    let mut c = a.add(b);
-
-                    for _i in 2..10_000_000 {
-                        let a = iter.next().unwrap();
-                        c =c.add(a);
+                    let vals = &lambdaworks_vec[..];
+                    let (mut i, end) = (1, vals.len() - 1);
+                    let mut c = vals[0];
+                    while i < end {
+                        c = c.add(vals[i]);
+                        i += 1;
                     }
                     black_box(c);
                 });
@@ -36,18 +34,18 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     }
     // arkworks-ff
     {
+        let arkworks_vec = arkworks_vec.clone();
+
         c.bench_function(
             &format!("{} 10M elements cumulative | ark-ff - ef8f758", BENCHMARK_NAME),
             |b| {
                 b.iter(|| {
-                    let mut iter = arkworks_vec.iter();
-                    let a = iter.next().unwrap();
-                    let b = iter.next().unwrap();
-                    let mut c = a.add(b);
-
-                    for _i in 2..10_000_000 {
-                        let a = iter.next().unwrap();
-                        c = c.add(a);
+                    let vals = &arkworks_vec[..];
+                    let (mut i, end) = (1, vals.len() - 1);
+                    let mut c = vals[0];
+                    while i < end {
+                        c = c.add(vals[i]);
+                        i += 1;
                     }
                     black_box(c);
                 });
@@ -62,15 +60,14 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         let lambdaworks_vec = to_lambdaworks_vec(&arkworks_vec);
 
         c.bench_function(
-            &format!("{} 5M elements | lambdaworks", BENCHMARK_NAME,),
+            &format!("{} 10M elements | lambdaworks", BENCHMARK_NAME,),
             |b| {
                 b.iter(|| {
-                    let mut iter = lambdaworks_vec.iter();
-
-                    for _i in 0..5_000_000 {
-                        let a = iter.next().unwrap();
-                        let b = iter.next().unwrap();
-                        black_box(black_box(&a).add(black_box(b)));
+                    let vals = &lambdaworks_vec[..];
+                    let (mut i, end) = (0, vals.len() - 1);
+                    while i < end {
+                        black_box(black_box(vals[i]).add(black_box(vals[i+1])));
+                        i += 1;
                     }
                 });
             },
@@ -78,16 +75,17 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     }
     // arkworks-ff
     {
+        let arkworks_vec = arkworks_vec.clone();
+
         c.bench_function(
-            &format!("{} 5M elements | ark-ff - ef8f758", BENCHMARK_NAME),
+            &format!("{} 10M elements | ark-ff - ef8f758", BENCHMARK_NAME),
             |b| {
                 b.iter(|| {
-                    let mut iter = arkworks_vec.iter();
-
-                    for _i in 0..5_000_000 {
-                        let a = iter.next().unwrap();
-                        let b = iter.next().unwrap();
-                        black_box(black_box(&a).add(black_box(b)));
+                    let vals = &arkworks_vec[..];
+                    let (mut i, end) = (0, vals.len() - 1);
+                    while i < end {
+                        black_box(black_box(vals[i]).add(black_box(vals[i+1])));
+                        i += 1;
                     }
                 });
             },
