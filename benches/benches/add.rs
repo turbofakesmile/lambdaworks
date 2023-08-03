@@ -1,4 +1,4 @@
-use std::{ops::Add, time::Duration};
+use std::{ops::Add, ops::AddAssign, time::Duration};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use utils::generate_random_elements;
@@ -24,10 +24,11 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     let (mut i, end) = (1, vals.len() - 1);
                     let mut c = vals[0];
                     while i < end {
-                        c = c.add(vals[i]);
+                        c.add_assign(black_box(vals[i]));
+                        c = black_box(c);
                         i += 1;
                     }
-                    black_box(c);
+                    black_box(c)
                 });
             },
         );
@@ -44,10 +45,11 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     let (mut i, end) = (1, vals.len() - 1);
                     let mut c = vals[0];
                     while i < end {
-                        c = c.add(vals[i]);
+                        c.add_assign(black_box(vals[i]));
+                        c = black_box(c);
                         i += 1;
                     }
-                    black_box(c);
+                    black_box(c)
                 });
             },
         );
