@@ -354,7 +354,7 @@ where
     F: IsField,
 {
     /// Creates a field element from `value`
-    #[inline(always)]
+    
     pub fn new(value: F::BaseType) -> Self {
         Self {
             value: F::from_base_type(value),
@@ -362,20 +362,20 @@ where
     }
 
     /// Returns the underlying `value`
-    #[inline(always)]
+    
     pub fn value(&self) -> &F::BaseType {
         &self.value
     }
 
     /// Returns the multiplicative inverse of `self`
-    #[inline(always)]
+    
     pub fn inv(&self) -> Result<Self, FieldError> {
         let value = F::inv(&self.value)?;
         Ok(Self { value })
     }
 
     /// Returns the square of `self`
-    #[inline(always)]
+    
     pub fn square(&self) -> Self {
         Self {
             value: F::square(&self.value),
@@ -383,7 +383,7 @@ where
     }
 
     /// Returns `self` raised to the power of `exponent`
-    #[inline(always)]
+    
     pub fn pow<T>(&self, exponent: T) -> Self
     where
         T: IsUnsignedInteger,
@@ -394,13 +394,13 @@ where
     }
 
     /// Returns the multiplicative neutral element of the field.
-    #[inline(always)]
+    
     pub fn one() -> Self {
         Self { value: F::one() }
     }
 
     /// Returns the additive neutral element of the field.
-    #[inline(always)]
+    
     pub fn zero() -> Self {
         Self { value: F::zero() }
     }

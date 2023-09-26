@@ -8,7 +8,7 @@ impl MontgomeryAlgorithms {
     /// Notice CIOS stands for Coarsely Integrated Operand Scanning
     /// For more information see section 2.3.2 of Tolga Acar's thesis
     /// https://www.microsoft.com/en-us/research/wp-content/uploads/1998/06/97Acar.pdf
-    #[inline(always)]
+    
     pub const fn cios<const NUM_LIMBS: usize>(
         a: &UnsignedInteger<NUM_LIMBS>,
         b: &UnsignedInteger<NUM_LIMBS>,
@@ -82,7 +82,7 @@ impl MontgomeryAlgorithms {
     /// It is only suited for moduli with `q[0]` smaller than `2^63 - 1`.
     /// `q` is the modulus
     /// `mu` is the inverse of -q modulo 2^{64}
-    #[inline(always)]
+    
     pub fn cios_optimized_for_moduli_with_one_spare_bit<const NUM_LIMBS: usize>(
         a: &UnsignedInteger<NUM_LIMBS>,
         b: &UnsignedInteger<NUM_LIMBS>,
@@ -141,7 +141,7 @@ impl MontgomeryAlgorithms {
     }
 
     // Separated Operand Scanning Method (2.3.1)
-    #[inline(always)]
+    
     pub fn sos_square<const NUM_LIMBS: usize>(
         a: &UnsignedInteger<NUM_LIMBS>,
         q: &UnsignedInteger<NUM_LIMBS>,

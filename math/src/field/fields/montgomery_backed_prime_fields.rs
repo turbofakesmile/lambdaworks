@@ -99,7 +99,7 @@ where
     /// Checks whether the most significant limb of the modulus is at
     /// most `0x7FFFFFFFFFFFFFFE`. This check is useful since special
     /// optimizations exist for this kind of moduli.
-    #[inline(always)]
+    
     const fn modulus_has_one_spare_bit() -> bool {
         M::MODULUS.limbs[0] < (1u64 << 63) - 1
     }
@@ -111,7 +111,7 @@ where
 {
     type BaseType = UnsignedInteger<NUM_LIMBS>;
 
-    #[inline(always)]
+    
     fn add(a: &Self::BaseType, b: &Self::BaseType) -> Self::BaseType {
         let (sum, overflow) = UnsignedInteger::add(a, b);
         if Self::MODULUS_HAS_ONE_SPARE_BIT {
@@ -128,7 +128,7 @@ where
         }
     }
 
-    #[inline(always)]
+    
     fn mul(a: &Self::BaseType, b: &Self::BaseType) -> Self::BaseType {
         if Self::MODULUS_HAS_ONE_SPARE_BIT {
             MontgomeryAlgorithms::cios_optimized_for_moduli_with_one_spare_bit(
@@ -142,12 +142,12 @@ where
         }
     }
 
-    #[inline(always)]
+    
     fn square(a: &UnsignedInteger<NUM_LIMBS>) -> UnsignedInteger<NUM_LIMBS> {
         MontgomeryAlgorithms::sos_square(a, &M::MODULUS, &Self::MU)
     }
 
-    #[inline(always)]
+    
     fn sub(a: &Self::BaseType, b: &Self::BaseType) -> Self::BaseType {
         if b <= a {
             a - b
@@ -156,7 +156,7 @@ where
         }
     }
 
-    #[inline(always)]
+    
     fn neg(a: &Self::BaseType) -> Self::BaseType {
         if a == &Self::ZERO {
             *a
@@ -165,7 +165,7 @@ where
         }
     }
 
-    #[inline(always)]
+    
     fn inv(a: &Self::BaseType) -> Result<Self::BaseType, FieldError> {
         if a == &Self::ZERO {
             Err(FieldError::InvZeroError)
@@ -238,27 +238,27 @@ where
         }
     }
 
-    #[inline(always)]
+    
     fn div(a: &Self::BaseType, b: &Self::BaseType) -> Self::BaseType {
         Self::mul(a, &Self::inv(b).unwrap())
     }
 
-    #[inline(always)]
+    
     fn eq(a: &Self::BaseType, b: &Self::BaseType) -> bool {
         a == b
     }
 
-    #[inline(always)]
+    
     fn zero() -> Self::BaseType {
         Self::ZERO
     }
 
-    #[inline(always)]
+    
     fn one() -> Self::BaseType {
         Self::ONE
     }
 
-    #[inline(always)]
+    
     fn from_u64(x: u64) -> Self::BaseType {
         MontgomeryAlgorithms::cios(
             &UnsignedInteger::from_u64(x),
@@ -268,7 +268,7 @@ where
         )
     }
 
-    #[inline(always)]
+    
     fn from_base_type(x: Self::BaseType) -> Self::BaseType {
         MontgomeryAlgorithms::cios(&x, &Self::R2, &M::MODULUS, &Self::MU)
     }

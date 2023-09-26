@@ -13,7 +13,7 @@ use sha3::{Digest, Keccak256};
 /// # Returns
 ///
 /// The number of leading zeros in the resulting hash value.
-#[inline(always)]
+
 pub fn hash_transcript_with_int_and_get_leading_zeros(
     transcript_challenge: &[u8; 32],
     value: u64,
