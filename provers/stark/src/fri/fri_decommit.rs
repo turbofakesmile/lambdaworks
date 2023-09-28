@@ -1,5 +1,6 @@
 pub use lambdaworks_crypto::fiat_shamir::transcript::Transcript;
 use lambdaworks_crypto::merkle_tree::proof::Proof;
+use lambdaworks_crypto::merkle_tree::traits::IsMerkleTreeBackend;
 use lambdaworks_math::errors::DeserializationError;
 use lambdaworks_math::field::element::FieldElement;
 use lambdaworks_math::field::traits::IsPrimeField;
@@ -9,16 +10,17 @@ use crate::config::Commitment;
 use crate::utils::{deserialize_proof, serialize_proof};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct FriDecommitment<F: IsPrimeField> {
-    pub layers_auth_paths_sym: Vec<Proof<Commitment>>,
+pub struct FriDecommitment<F: IsPrimeField, B: IsMerkleTreeBackend> {
+    pub layers_auth_paths_sym: Vec<Proof<B::Node>>,
     pub layers_evaluations_sym: Vec<FieldElement<F>>,
-    pub layers_auth_paths: Vec<Proof<Commitment>>,
+    pub layers_auth_paths: Vec<Proof<B::Node>>,
     pub layers_evaluations: Vec<FieldElement<F>>,
 }
 
-impl<F> Serializable for FriDecommitment<F>
+impl<F, B> Serializable for FriDecommitment<F, B>
 where
     F: IsPrimeField,
+    B: IsMerkleTreeBackend,
     FieldElement<F>: ByteConversion,
 {
     fn serialize(&self) -> Vec<u8> {
@@ -45,9 +47,10 @@ where
     }
 }
 
-impl<F> Deserializable for FriDecommitment<F>
+impl<F, B> Deserializable for FriDecommitment<F, B>
 where
     F: IsPrimeField,
+    B: IsMerkleTreeBackend,
     FieldElement<F>: ByteConversion,
 {
     fn deserialize(bytes: &[u8]) -> Result<Self, DeserializationError>

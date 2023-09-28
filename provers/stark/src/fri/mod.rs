@@ -2,6 +2,7 @@ pub mod fri_commitment;
 pub mod fri_decommit;
 mod fri_functions;
 
+use lambdaworks_crypto::merkle_tree::traits::IsMerkleTreeBackend;
 use lambdaworks_math::field::traits::{IsFFTField, IsField};
 use lambdaworks_math::traits::ByteConversion;
 pub use lambdaworks_math::{
@@ -71,15 +72,16 @@ where
     (last_value, fri_layer_list)
 }
 
-pub fn fri_query_phase<F, A>(
+pub fn fri_query_phase<F, B, A>(
     air: &A,
     domain_size: usize,
     fri_layers: &Vec<FriLayer<F>>,
     transcript: &mut impl IsStarkTranscript<F>,
-) -> (Vec<FriDecommitment<F>>, Vec<usize>)
+) -> (Vec<FriDecommitment<F, B>>, Vec<usize>)
 where
     F: IsFFTField,
     A: AIR<Field = F>,
+    B: IsMerkleTreeBackend,
     FieldElement<F>: ByteConversion,
 {
     if !fri_layers.is_empty() {

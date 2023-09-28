@@ -1,6 +1,8 @@
 #[cfg(feature = "instruments")]
 use std::time::Instant;
 
+use lambdaworks_crypto::merkle_tree::merkle::MerkleTree;
+use lambdaworks_crypto::merkle_tree::traits::IsMerkleTreeBackend;
 use lambdaworks_math::fft::{errors::FFTError, polynomial::FFTPoly};
 use lambdaworks_math::{
     field::{element::FieldElement, traits::IsFFTField},
@@ -34,16 +36,17 @@ pub enum ProvingError {
     WrongParameter(String),
 }
 
-struct Round1<F, A>
+struct Round1<F, B, A>
 where
     F: IsFFTField,
     A: AIR<Field = F>,
+    B: IsMerkleTreeBackend,
     FieldElement<F>: ByteConversion,
 {
     trace_polys: Vec<Polynomial<FieldElement<F>>>,
     lde_trace: TraceTable<F>,
-    lde_trace_merkle_trees: Vec<BatchedMerkleTree<F>>,
-    lde_trace_merkle_roots: Vec<Commitment>,
+    lde_trace_merkle_trees: Vec<MerkleTree<B>>,
+    lde_trace_merkle_roots: Vec<B::Node>,
     rap_challenges: A::RAPChallenges,
 }
 
@@ -66,20 +69,20 @@ struct Round3<F: IsFFTField> {
     composition_poly_odd_ood_evaluation: FieldElement<F>,
 }
 
-struct Round4<F: IsFFTField> {
+struct Round4<F: IsFFTField, B: IsMerkleTreeBackend> {
     fri_last_value: FieldElement<F>,
-    fri_layers_merkle_roots: Vec<Commitment>,
-    deep_poly_openings: Vec<DeepPolynomialOpenings<F>>,
-    query_list: Vec<FriDecommitment<F>>,
+    fri_layers_merkle_roots: Vec<B::Node>,
+    deep_poly_openings: Vec<DeepPolynomialOpenings<F, B>>,
+    query_list: Vec<FriDecommitment<F, B>>,
     nonce: u64,
 }
 
-fn batch_commit<F>(vectors: &[Vec<FieldElement<F>>]) -> (BatchedMerkleTree<F>, Commitment)
+fn batch_commit<F, B: IsMerkleTreeBackend<Data=Vec<FieldElement<F>>>>(vectors: &[Vec<FieldElement<F>>]) -> (MerkleTree<B>, B::Node)
 where
     F: IsFFTField,
     FieldElement<F>: ByteConversion,
 {
-    let tree = BatchedMerkleTree::<F>::build(vectors);
+    let tree = MerkleTree::<B>::build(vectors);
     let commitment = tree.root;
     (tree, commitment)
 }
@@ -104,19 +107,20 @@ where
 }
 
 #[allow(clippy::type_complexity)]
-fn interpolate_and_commit<F>(
+fn interpolate_and_commit<F, B: IsMerkleTreeBackend<Data=Vec<FieldElement<F>>>>(
     trace: &TraceTable<F>,
     domain: &Domain<F>,
     transcript: &mut impl IsStarkTranscript<F>,
 ) -> (
     Vec<Polynomial<FieldElement<F>>>,
     Vec<Vec<FieldElement<F>>>,
-    BatchedMerkleTree<F>,
-    Commitment,
+    MerkleTree<B>,
+    B::Node,
 )
 where
     F: IsFFTField,
     FieldElement<F>: ByteConversion + Send + Sync,
+    B::Node: ByteConversion
 {
     let trace_polys = trace.compute_trace_polys();
 
@@ -125,10 +129,10 @@ where
 
     // Compute commitments [t_j].
     let lde_trace = TraceTable::new_from_cols(&lde_trace_evaluations);
-    let (lde_trace_merkle_tree, lde_trace_merkle_root) = batch_commit(&lde_trace.rows());
+    let (lde_trace_merkle_tree, lde_trace_merkle_root): (MerkleTree<B>, B::Node) = batch_commit(&lde_trace.rows());
 
     // >>>> Send commitments: [tⱼ]
-    transcript.append_bytes(&lde_trace_merkle_root);
+    transcript.append_bytes(&lde_trace_merkle_root.to_bytes_be());
 
     (
         trace_polys,
@@ -164,12 +168,12 @@ where
         .unwrap()
 }
 
-fn round_1_randomized_air_with_preprocessing<F: IsFFTField, A: AIR<Field = F>>(
+fn round_1_randomized_air_with_preprocessing<F: IsFFTField, B:IsMerkleTreeBackend, A: AIR<Field = F>>(
     air: &A,
     main_trace: &TraceTable<F>,
     domain: &Domain<F>,
     transcript: &mut impl IsStarkTranscript<F>,
-) -> Result<Round1<F, A>, ProvingError>
+) -> Result<Round1<F, B, A>, ProvingError>
 where
     FieldElement<F>: ByteConversion + Send + Sync,
 {
@@ -203,10 +207,10 @@ where
     })
 }
 
-fn round_2_compute_composition_polynomial<F, A>(
+fn round_2_compute_composition_polynomial<F, B, A>(
     air: &A,
     domain: &Domain<F>,
-    round_1_result: &Round1<F, A>,
+    round_1_result: &Round1<F, B, A>,
     transition_coefficients: &[FieldElement<F>],
     boundary_coefficients: &[FieldElement<F>],
 ) -> Round2<F>
@@ -214,6 +218,7 @@ where
     F: IsFFTField,
     A: AIR<Field = F> + Send + Sync,
     A::RAPChallenges: Send + Sync,
+    B: IsMerkleTreeBackend,
     FieldElement<F>: ByteConversion + Send + Sync,
 {
     // Create evaluation table
@@ -265,10 +270,10 @@ where
     }
 }
 
-fn round_3_evaluate_polynomials_in_out_of_domain_element<F: IsFFTField, A: AIR<Field = F>>(
+fn round_3_evaluate_polynomials_in_out_of_domain_element<F: IsFFTField, B: IsMerkleTreeBackend, A: AIR<Field = F>>(
     air: &A,
     domain: &Domain<F>,
-    round_1_result: &Round1<F, A>,
+    round_1_result: &Round1<F, B, A>,
     round_2_result: &Round2<F>,
     z: &FieldElement<F>,
 ) -> Round3<F>
@@ -306,16 +311,17 @@ where
 
 fn round_4_compute_and_run_fri_on_the_deep_composition_polynomial<
     F: IsFFTField,
+    B: IsMerkleTreeBackend,
     A: AIR<Field = F>,
 >(
     air: &A,
     domain: &Domain<F>,
-    round_1_result: &Round1<F, A>,
+    round_1_result: &Round1<F, B, A>,
     round_2_result: &Round2<F>,
     round_3_result: &Round3<F>,
     z: &FieldElement<F>,
     transcript: &mut impl IsStarkTranscript<F>,
-) -> Round4<F>
+) -> Round4<F, B>
 where
     FieldElement<F>: ByteConversion + Send + Sync,
 {
@@ -506,12 +512,12 @@ where
     trace_terms + trace_int
 }
 
-fn open_deep_composition_poly<F: IsFFTField, A: AIR<Field = F>>(
+fn open_deep_composition_poly<F: IsFFTField, B: IsMerkleTreeBackend, A: AIR<Field = F>>(
     domain: &Domain<F>,
-    round_1_result: &Round1<F, A>,
+    round_1_result: &Round1<F, B, A>,
     round_2_result: &Round2<F>,
     indexes_to_open: &[usize], // list of iotas
-) -> Vec<DeepPolynomialOpenings<F>>
+) -> Vec<DeepPolynomialOpenings<F, B>>
 where
     FieldElement<F>: ByteConversion,
 {
@@ -557,16 +563,17 @@ where
 }
 
 // FIXME remove unwrap() calls and return errors
-pub fn prove<F, A>(
+pub fn prove<F, B, A>(
     main_trace: &TraceTable<F>,
     pub_inputs: &A::PublicInputs,
     proof_options: &ProofOptions,
     mut transcript: impl IsStarkTranscript<F>,
-) -> Result<StarkProof<F>, ProvingError>
+) -> Result<StarkProof<F, B>, ProvingError>
 where
     F: IsFFTField,
     A: AIR<Field = F> + Send + Sync,
     A::RAPChallenges: Send + Sync,
+    B: IsMerkleTreeBackend,
     FieldElement<F>: ByteConversion + Send + Sync,
 {
     info!("Started proof generation...");

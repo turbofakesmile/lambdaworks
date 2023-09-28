@@ -1,6 +1,7 @@
 #[cfg(feature = "instruments")]
 use std::time::Instant;
 
+use lambdaworks_crypto::merkle_tree::traits::IsMerkleTreeBackend;
 //use itertools::multizip;
 #[cfg(not(feature = "test_fiat_shamir"))]
 use log::error;
@@ -42,9 +43,9 @@ where
     leading_zeros_count: u8, // number of leading zeros in the grinding
 }
 
-fn step_1_replay_rounds_and_recover_challenges<F, A>(
+fn step_1_replay_rounds_and_recover_challenges<F, B, A>(
     air: &A,
-    proof: &StarkProof<F>,
+    proof: &StarkProof<F, B>,
     domain: &Domain<F>,
     transcript: &mut impl IsStarkTranscript<F>,
 ) -> Challenges<F, A>
@@ -52,6 +53,7 @@ where
     F: IsFFTField,
     FieldElement<F>: ByteConversion,
     A: AIR<Field = F>,
+    B: IsMerkleTreeBackend
 {
     // ===================================
     // ==========|   Round 1   |==========
@@ -172,9 +174,9 @@ where
     }
 }
 
-fn step_2_verify_claimed_composition_polynomial<F: IsFFTField, A: AIR<Field = F>>(
+fn step_2_verify_claimed_composition_polynomial<F: IsFFTField, B: IsMerkleTreeBackend, A: AIR<Field = F>>(
     air: &A,
-    proof: &StarkProof<F>,
+    proof: &StarkProof<F, B>,
     domain: &Domain<F>,
     challenges: &Challenges<F, A>,
 ) -> bool {
@@ -263,8 +265,8 @@ fn step_2_verify_claimed_composition_polynomial<F: IsFFTField, A: AIR<Field = F>
     composition_poly_claimed_ood_evaluation == composition_poly_ood_evaluation
 }
 
-fn step_3_verify_fri<F, A>(
-    proof: &StarkProof<F>,
+fn step_3_verify_fri<F, B: IsMerkleTreeBackend, A>(
+    proof: &StarkProof<F, B>,
     domain: &Domain<F>,
     challenges: &Challenges<F, A>,
 ) -> bool
@@ -302,9 +304,9 @@ where
         })
 }
 
-fn step_4_verify_deep_composition_polynomial<F: IsFFTField, A: AIR<Field = F>>(
+fn step_4_verify_deep_composition_polynomial<F: IsFFTField, B: IsMerkleTreeBackend<Data=Vec<FieldElement<F>>>, A: AIR<Field = F>>(
     air: &A,
-    proof: &StarkProof<F>,
+    proof: &StarkProof<F, B>,
     domain: &Domain<F>,
     challenges: &Challenges<F, A>,
 ) -> bool
@@ -341,7 +343,7 @@ where
                 // Verify opening Open(H₁(D_LDE, 𝜐₀) and Open(H₂(D_LDE, 𝜐₀),
                 result &= deep_poly_opening
                     .lde_composition_poly_proof
-                    .verify::<BatchedMerkleTreeBackend<F>>(
+                    .verify::<B>(
                         &proof.composition_poly_root,
                         *iota_n,
                         &evaluations,
@@ -361,7 +363,7 @@ where
                     .zip(&deep_poly_opening.lde_trace_merkle_proofs)
                     .zip(lde_trace_evaluations)
                     .fold(result, |acc, ((merkle_root, merkle_proof), evaluation)| {
-                        acc & merkle_proof.verify::<BatchedMerkleTreeBackend<F>>(
+                        acc & merkle_proof.verify(
                             merkle_root,
                             *iota_n,
                             &evaluation,
@@ -387,11 +389,11 @@ where
         )
 }
 
-fn verify_query_and_sym_openings<F: IsField + IsFFTField>(
-    proof: &StarkProof<F>,
+fn verify_query_and_sym_openings<F: IsField + IsFFTField, B: IsMerkleTreeBackend>(
+    proof: &StarkProof<F, B>,
     zetas: &[FieldElement<F>],
     iota: usize,
-    fri_decommitment: &FriDecommitment<F>,
+    fri_decommitment: &FriDecommitment<F, B>,
     domain: &Domain<F>,
     evaluation_point: FieldElement<F>,
     two_inv: &FieldElement<F>,
@@ -470,8 +472,8 @@ where
 }
 
 // Reconstruct Deep(\upsilon_0) off the values in the proof
-fn reconstruct_deep_composition_poly_evaluation<F: IsFFTField, A: AIR<Field = F>>(
-    proof: &StarkProof<F>,
+fn reconstruct_deep_composition_poly_evaluation<F: IsFFTField, B: IsMerkleTreeBackend, A: AIR<Field = F>>(
+    proof: &StarkProof<F, B>,
     challenges: &Challenges<F, A>,
     denom_inv: &FieldElement<F>,
     divisors: &[FieldElement<F>],
@@ -503,8 +505,8 @@ fn reconstruct_deep_composition_poly_evaluation<F: IsFFTField, A: AIR<Field = F>
     trace_term + h_1_term * &challenges.gamma_even + h_2_term * &challenges.gamma_odd
 }
 
-pub fn verify<F, A>(
-    proof: &StarkProof<F>,
+pub fn verify<F, B: IsMerkleTreeBackend, A>(
+    proof: &StarkProof<F, B>,
     pub_input: &A::PublicInputs,
     proof_options: &ProofOptions,
     mut transcript: impl IsStarkTranscript<F>,

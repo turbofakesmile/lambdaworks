@@ -1,4 +1,4 @@
-use lambdaworks_crypto::merkle_tree::proof::Proof;
+use lambdaworks_crypto::merkle_tree::{proof::Proof, traits::IsMerkleTreeBackend};
 use lambdaworks_math::{
     errors::DeserializationError,
     field::{element::FieldElement, traits::IsFFTField},
@@ -14,45 +14,46 @@ use crate::{
 use core::mem;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DeepPolynomialOpenings<F: IsFFTField> {
-    pub lde_composition_poly_proof: Proof<Commitment>,
+pub struct DeepPolynomialOpenings<F: IsFFTField, B: IsMerkleTreeBackend> {
+    pub lde_composition_poly_proof: Proof<B::Node>,
     pub lde_composition_poly_even_evaluation: FieldElement<F>,
     pub lde_composition_poly_odd_evaluation: FieldElement<F>,
-    pub lde_trace_merkle_proofs: Vec<Proof<Commitment>>,
+    pub lde_trace_merkle_proofs: Vec<Proof<B::Node>>,
     pub lde_trace_evaluations: Vec<FieldElement<F>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct StarkProof<F: IsFFTField> {
+pub struct StarkProof<F: IsFFTField, B: IsMerkleTreeBackend> {
     // Length of the execution trace
     pub trace_length: usize,
     // Commitments of the trace columns
     // [tⱼ]
-    pub lde_trace_merkle_roots: Vec<Commitment>,
+    pub lde_trace_merkle_roots: Vec<B::Node>,
     // tⱼ(zgᵏ)
     pub trace_ood_frame_evaluations: Frame<F>,
     // [H₁] and [H₂]
-    pub composition_poly_root: Commitment,
+    pub composition_poly_root: B::Node,
     // H₁(z²)
     pub composition_poly_even_ood_evaluation: FieldElement<F>,
     // H₂(z²)
     pub composition_poly_odd_ood_evaluation: FieldElement<F>,
     // [pₖ]
-    pub fri_layers_merkle_roots: Vec<Commitment>,
+    pub fri_layers_merkle_roots: Vec<B::Node>,
     // pₙ
     pub fri_last_value: FieldElement<F>,
     // Open(p₀(D₀), 𝜐ₛ), Opwn(pₖ(Dₖ), −𝜐ₛ^(2ᵏ))
-    pub query_list: Vec<FriDecommitment<F>>,
+    pub query_list: Vec<FriDecommitment<F, B>>,
     // Open(H₁(D_LDE, 𝜐₀), Open(H₂(D_LDE, 𝜐₀), Open(tⱼ(D_LDE), 𝜐₀)
-    pub deep_poly_openings: Vec<DeepPolynomialOpenings<F>>,
+    pub deep_poly_openings: Vec<DeepPolynomialOpenings<F, B>>,
     // nonce obtained from grinding
     pub nonce: u64,
 }
 
-impl<F> Serializable for DeepPolynomialOpenings<F>
+impl<F, B> Serializable for DeepPolynomialOpenings<F, B>
 where
     F: IsFFTField,
     FieldElement<F>: ByteConversion,
+    B: IsMerkleTreeBackend
 {
     fn serialize(&self) -> Vec<u8> {
         let mut bytes = vec![];
@@ -75,9 +76,10 @@ where
     }
 }
 
-impl<F> Deserializable for DeepPolynomialOpenings<F>
+impl<F, B> Deserializable for DeepPolynomialOpenings<F, B>
 where
     F: IsFFTField,
+    B: IsMerkleTreeBackend,
     FieldElement<F>: ByteConversion,
 {
     fn deserialize(bytes: &[u8]) -> Result<Self, DeserializationError>
@@ -157,10 +159,11 @@ where
     }
 }
 
-impl<F> Serializable for StarkProof<F>
+impl<F, B> Serializable for StarkProof<F, B>
 where
     F: IsFFTField,
     FieldElement<F>: ByteConversion,
+    B: IsMerkleTreeBackend
 {
     fn serialize(&self) -> Vec<u8> {
         let mut bytes = vec![];
@@ -216,10 +219,11 @@ where
     }
 }
 
-impl<F> Deserializable for StarkProof<F>
+impl<F, B> Deserializable for StarkProof<F, B>
 where
     F: IsFFTField,
     FieldElement<F>: ByteConversion,
+    B: IsMerkleTreeBackend
 {
     fn deserialize(bytes: &[u8]) -> Result<Self, DeserializationError>
     where

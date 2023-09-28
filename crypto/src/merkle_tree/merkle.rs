@@ -13,8 +13,8 @@ where
     B: IsMerkleTreeBackend,
 {
     pub fn build(unhashed_leaves: &[B::Data]) -> Self {
-        let hasher = B::default();
-        let mut hashed_leaves: Vec<B::Node> = hasher.hash_leaves(unhashed_leaves);
+        let backend = B::default();
+        let mut hashed_leaves: Vec<B::Node> = backend.hash_leaves(unhashed_leaves);
 
         //The leaf must be a power of 2 set
         hashed_leaves = complete_until_power_of_two(&mut hashed_leaves);
@@ -26,7 +26,7 @@ where
         inner_nodes.extend(hashed_leaves);
 
         //Build the inner nodes of the tree
-        build(&mut inner_nodes, ROOT, &hasher);
+        build(&mut inner_nodes, ROOT, &backend);
 
         MerkleTree {
             root: inner_nodes[ROOT].clone(),
