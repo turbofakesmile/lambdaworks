@@ -1,16 +1,3 @@
-use itertools::Itertools;
-use lambdaworks_math::{
-    fft::cpu::roots_of_unity::get_powers_of_primitive_root_coset,
-    field::{element::FieldElement, traits::IsFFTField},
-    polynomial::Polynomial,
-    traits::Serializable,
-};
-
-#[cfg(feature = "parallel")]
-use rayon::prelude::{
-    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
-};
-
 #[cfg(all(debug_assertions, not(feature = "parallel")))]
 use crate::debug::check_boundary_polys_divisibility;
 use crate::domain::Domain;
@@ -18,6 +5,17 @@ use crate::frame::Frame;
 use crate::prover::evaluate_polynomial_on_lde_domain;
 use crate::trace::TraceTable;
 use crate::traits::AIR;
+use itertools::Itertools;
+use lambdaworks_math::{
+    fft::cpu::roots_of_unity::get_powers_of_primitive_root_coset,
+    field::{element::FieldElement, traits::IsFFTField},
+    polynomial::Polynomial,
+    traits::Serializable,
+};
+#[cfg(feature = "parallel")]
+use rayon::prelude::{
+    IndexedParallelIterator, IntoParallelIterator, IntoParallelRefIterator, ParallelIterator,
+};
 
 use super::{boundary::BoundaryConstraints, evaluation_table::ConstraintEvaluationTable};
 
@@ -25,6 +23,7 @@ pub struct ConstraintEvaluator<F: IsFFTField, A: AIR> {
     air: A,
     boundary_constraints: BoundaryConstraints<F>,
 }
+
 impl<F: IsFFTField, A: AIR + AIR<Field = F>> ConstraintEvaluator<F, A> {
     pub fn new(air: &A, rap_challenges: &A::RAPChallenges) -> Self {
         let boundary_constraints = air.boundary_constraints(rap_challenges);
@@ -161,30 +160,30 @@ impl<F: IsFFTField, A: AIR + AIR<Field = F>> ConstraintEvaluator<F, A> {
             zerofier_iter = zerofier_evaluations.iter().cycle();
         }
 
-        let evaluations_t = evaluations_t_iter
-            .zip(&boundary_evaluation)
-            .zip(zerofier_iter)
-            .map(|((i, boundary), zerofier)| {
-                let frame = Frame::read_from_trace(
-                    lde_trace,
-                    i,
-                    blowup_factor,
-                    &self.air.context().transition_offsets,
-                );
+        let evaluations_t =
+            itertools::izip!(evaluations_t_iter, &boundary_evaluation, zerofier_iter)
+                .map(|(i, boundary, zerofier)| {
+                    let frame = Frame::read_from_trace(
+                        lde_trace,
+                        i,
+                        blowup_factor,
+                        &self.air.context().transition_offsets,
+                    );
 
-                let evaluations_transition = self.air.compute_transition(&frame, rap_challenges);
+                    let evaluations_transition =
+                        self.air.compute_transition(&frame, rap_challenges);
 
-                #[cfg(all(debug_assertions, not(feature = "parallel")))]
-                transition_evaluations.push(evaluations_transition.clone());
+                    #[cfg(all(debug_assertions, not(feature = "parallel")))]
+                    transition_evaluations.push(evaluations_transition.clone());
 
-                let acc_transition = evaluations_transition
-                    .iter()
-                    .zip(&self.air.context().transition_exemptions)
-                    .zip(&self.air.context().transition_degrees)
-                    .zip(transition_coefficients)
+                    let acc_transition = itertools::izip!(
+                        evaluations_transition,
+                        &self.air.context().transition_exemptions,
+                        transition_coefficients
+                    )
                     .fold(
                         FieldElement::zero(),
-                        |acc, (((eval, exemption), _), beta)| {
+                        |acc, (eval, exemption, beta)| {
                             #[cfg(feature = "parallel")]
                             let zerofier = zerofier.clone();
 
@@ -221,11 +220,11 @@ impl<F: IsFFTField, A: AIR + AIR<Field = F>> ConstraintEvaluator<F, A> {
                             }
                         },
                     );
-                // TODO: Remove clones
+                    // TODO: Remove clones
 
-                acc_transition + boundary
-            })
-            .collect::<Vec<FieldElement<F>>>();
+                    acc_transition + boundary
+                })
+                .collect::<Vec<FieldElement<F>>>();
 
         evaluation_table.evaluations_acc = evaluations_t;
 
@@ -252,18 +251,12 @@ impl<F: IsFFTField, A: AIR + AIR<Field = F>> ConstraintEvaluator<F, A> {
     pub fn compute_constraint_composition_poly_evaluations_sum(
         evaluations: &[FieldElement<F>],
         inverse_denominators: &[FieldElement<F>],
-        degree_adjustments: &[FieldElement<F>],
         constraint_coeffs: &[(FieldElement<F>, FieldElement<F>)],
     ) -> FieldElement<F> {
-        evaluations
-            .iter()
-            .zip(degree_adjustments)
-            .zip(inverse_denominators)
-            .zip(constraint_coeffs)
-            .fold(
-                FieldElement::<F>::zero(),
-                |acc, (((ev, _), inv), (_, beta))| acc + ev * beta * inv,
-            )
+        itertools::izip!(evaluations, inverse_denominators, constraint_coeffs)
+            .fold(FieldElement::<F>::zero(), |acc, (ev, inv, (_, beta))| {
+                acc + ev * beta * inv
+            })
     }
 }
 
