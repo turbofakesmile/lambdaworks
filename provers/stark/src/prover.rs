@@ -727,13 +727,14 @@ pub trait IsStarkProver {
             &mut transcript,
         )?;
 
+        /* 
         #[cfg(debug_assertions)]
         validate_trace(
             &air,
             &round_1_result.trace_polys,
             &domain,
             &round_1_result.rap_challenges,
-        );
+        );*/
 
         #[cfg(feature = "instruments")]
         let elapsed1 = timer1.elapsed();

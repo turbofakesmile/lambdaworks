@@ -4,6 +4,7 @@ use crate::trace::TraceTable;
 use super::domain::Domain;
 use super::traits::AIR;
 use lambdaworks_math::fft::polynomial::FFTPoly;
+use lambdaworks_math::field::traits::IsPrimeField;
 use lambdaworks_math::{
     field::{element::FieldElement, traits::IsFFTField},
     polynomial::Polynomial,
@@ -11,7 +12,7 @@ use lambdaworks_math::{
 use log::{error, info};
 
 /// Validates that the trace is valid with respect to the supplied AIR constraints
-pub fn validate_trace<F: IsFFTField, A: AIR<Field = F>>(
+pub fn validate_trace<F: IsFFTField + IsPrimeField, A: AIR<Field = F>>(
     air: &A,
     trace_polys: &[Polynomial<FieldElement<A::Field>>],
     domain: &Domain<A::Field>,
@@ -84,10 +85,10 @@ pub fn validate_trace<F: IsFFTField, A: AIR<Field = F>>(
             if step < exemption_steps[i] && eval != &FieldElement::<F>::zero() {
                 ret = false;
                 error!(
-                    "Inconsistent evaluation of transition {} in step {} - expected 0, got {}",
+                    "Inconsistent evaluation of transition {} in step {} - expected 0, got {:?}",
                     i,
                     step,
-                    eval.representative()
+                    eval
                 );
             }
         })

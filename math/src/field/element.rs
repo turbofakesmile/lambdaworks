@@ -450,7 +450,11 @@ impl<F: IsPrimeField> FieldElement<F> {
 }
 
 #[cfg(feature = "lambdaworks-serde-binary")]
-impl<F: IsPrimeField> Serialize for FieldElement<F> {
+impl<F> Serialize for FieldElement<F>
+where
+    F: IsField,
+    F::BaseType: ByteConversion
+{
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -478,7 +482,11 @@ impl<F: IsPrimeField> Serialize for FieldElement<F> {
 }
 
 #[cfg(feature = "lambdaworks-serde-binary")]
-impl<'de, F: IsPrimeField> Deserialize<'de> for FieldElement<F> {
+impl<'de, F> Deserialize<'de> for FieldElement<F>
+where
+    F: IsField,
+    F::BaseType: ByteConversion
+{
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -491,7 +499,7 @@ impl<'de, F: IsPrimeField> Deserialize<'de> for FieldElement<F> {
 
         struct FieldElementVisitor<F>(PhantomData<fn() -> F>);
 
-        impl<'de, F: IsPrimeField> Visitor<'de> for FieldElementVisitor<F> {
+        impl<'de, F: IsField> Visitor<'de> for FieldElementVisitor<F> {
             type Value = FieldElement<F>;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
