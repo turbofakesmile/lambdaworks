@@ -9,7 +9,3 @@ pub mod fields;
 pub mod test_fields;
 /// Common behaviour for field elements.
 pub mod traits;
-
-/// Winterfell and miden field compatibility
-#[cfg(feature = "winter_compatibility")]
-pub mod winterfell;
