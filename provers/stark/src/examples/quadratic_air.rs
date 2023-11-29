@@ -33,6 +33,7 @@ where
     F: IsFFTField,
 {
     type Field = F;
+    type ExtensionField = F;
     type RAPChallenges = ();
     type PublicInputs = QuadraticPublicInputs<Self::Field>;
 

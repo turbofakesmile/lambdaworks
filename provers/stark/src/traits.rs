@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use lambdaworks_math::{
     fft::{cpu::roots_of_unity::get_powers_of_primitive_root_coset, polynomial::FFTPoly},
-    field::{element::FieldElement, traits::IsFFTField},
+    field::{element::FieldElement, traits::{IsFFTField, IsField, IsSubFieldOf}},
     polynomial::Polynomial,
 };
 
@@ -14,7 +14,8 @@ use super::{
 
 /// AIR is a representation of the Constraints
 pub trait AIR {
-    type Field: IsFFTField;
+    type Field: IsFFTField + IsSubFieldOf<Self::ExtensionField>;
+    type ExtensionField: IsField;
     type RAPChallenges;
     type PublicInputs;
 

@@ -21,6 +21,7 @@ pub struct DummyAIR {
 
 impl AIR for DummyAIR {
     type Field = Stark252PrimeField;
+    type ExtensionField = Stark252PrimeField;
     type RAPChallenges = ();
     type PublicInputs = ();
 

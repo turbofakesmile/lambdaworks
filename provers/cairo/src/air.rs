@@ -597,6 +597,7 @@ fn generate_range_check_permutation_argument_column(
 
 impl AIR for CairoAIR {
     type Field = Stark252PrimeField;
+    type ExtensionField = Stark252PrimeField;
     type RAPChallenges = CairoRAPChallenges;
     type PublicInputs = PublicInputs;
 

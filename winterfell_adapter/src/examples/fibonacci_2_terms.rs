@@ -85,7 +85,7 @@ pub fn build_trace(sequence_length: usize) -> TraceTable<Felt> {
 
 #[cfg(test)]
 mod tests {
-    use miden_core::{Felt, QuadExtension};
+    use miden_core::Felt;
     use stark_platinum_prover::{
         proof::options::ProofOptions, prover::IsStarkProver, verifier::IsStarkVerifier,
     };
