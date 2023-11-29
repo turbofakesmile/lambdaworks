@@ -2,9 +2,9 @@ pub mod fri_commitment;
 pub mod fri_decommit;
 mod fri_functions;
 
-use lambdaworks_math::fft::cpu::bit_reversing::in_place_bit_reverse_permute;
+use lambdaworks_math::{fft::cpu::bit_reversing::in_place_bit_reverse_permute, field::traits::IsSubFieldOf};
 use lambdaworks_math::fft::polynomial::FFTPoly;
-use lambdaworks_math::field::traits::IsFFTField;
+use lambdaworks_math::field::traits::{IsFFTField, IsField};
 use lambdaworks_math::traits::Serializable;
 pub use lambdaworks_math::{
     field::{element::FieldElement, fields::u64_prime_field::U64PrimeField},
@@ -18,15 +18,15 @@ use self::fri_commitment::FriLayer;
 use self::fri_decommit::FriDecommitment;
 use self::fri_functions::fold_polynomial;
 
-pub fn commit_phase<F: IsFFTField>(
+pub fn commit_phase<F: IsFFTField + IsSubFieldOf<E>, E: IsField>(
     number_layers: usize,
-    p_0: Polynomial<FieldElement<F>>,
-    transcript: &mut impl IsStarkTranscript<F>,
+    p_0: Polynomial<FieldElement<E>>,
+    transcript: &mut impl IsStarkTranscript<E>,
     coset_offset: &FieldElement<F>,
     domain_size: usize,
 ) -> (
-    FieldElement<F>,
-    Vec<FriLayer<F, BatchedMerkleTreeBackend<F>>>,
+    FieldElement<E>,
+    Vec<FriLayer<F, E, BatchedMerkleTreeBackend<F>>>,
 )
 where
     FieldElement<F>: Serializable,
@@ -72,10 +72,10 @@ where
     (last_value, fri_layer_list)
 }
 
-pub fn query_phase<F: IsFFTField>(
-    fri_layers: &Vec<FriLayer<F, BatchedMerkleTreeBackend<F>>>,
+pub fn query_phase<F: IsFFTField + IsSubFieldOf<E>, E: IsField>(
+    fri_layers: &Vec<FriLayer<F, E, BatchedMerkleTreeBackend<F>>>,
     iotas: &[usize],
-) -> Vec<FriDecommitment<F>>
+) -> Vec<FriDecommitment<E>>
 where
     FieldElement<F>: Serializable,
 {
@@ -110,11 +110,11 @@ where
     }
 }
 
-pub fn new_fri_layer<F: IsFFTField>(
-    poly: &Polynomial<FieldElement<F>>,
+pub fn new_fri_layer<F: IsFFTField + IsSubFieldOf<E>, E: IsField>(
+    poly: &Polynomial<FieldElement<E>>,
     coset_offset: &FieldElement<F>,
     domain_size: usize,
-) -> crate::fri::fri_commitment::FriLayer<F, BatchedMerkleTreeBackend<F>>
+) -> crate::fri::fri_commitment::FriLayer<F, E, BatchedMerkleTreeBackend<F>>
 where
     F: IsFFTField,
     FieldElement<F>: Serializable,

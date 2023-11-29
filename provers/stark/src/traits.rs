@@ -14,8 +14,8 @@ use super::{
 
 /// AIR is a representation of the Constraints
 pub trait AIR {
-    type Field: IsFFTField + IsSubFieldOf<Self::ExtensionField>;
-    type ExtensionField: IsField;
+    type Field: IsFFTField + IsSubFieldOf<Self::FieldExtension>;
+    type FieldExtension: IsField;
     type RAPChallenges;
     type PublicInputs;
 
@@ -35,7 +35,7 @@ pub trait AIR {
 
     fn build_rap_challenges(
         &self,
-        transcript: &mut impl IsStarkTranscript<Self::Field>,
+        transcript: &mut impl IsStarkTranscript<Self::FieldExtension>,
     ) -> Self::RAPChallenges;
 
     fn number_auxiliary_rap_columns(&self) -> usize;
