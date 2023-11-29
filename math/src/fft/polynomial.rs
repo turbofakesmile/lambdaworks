@@ -1,5 +1,6 @@
 use crate::fft::errors::FFTError;
 
+use crate::field::traits::{IsField, IsSubFieldOf};
 use crate::{
     field::{
         element::FieldElement,
@@ -15,28 +16,28 @@ use crate::fft::gpu::metal::polynomial::{evaluate_fft_metal, interpolate_fft_met
 
 use super::cpu::{ops, roots_of_unity};
 
-pub trait FFTPoly<F: IsFFTField> {
+pub trait FFTPoly<F: IsFFTField + IsSubFieldOf<E>, E: IsField> {
     fn evaluate_fft(
         &self,
         blowup_factor: usize,
         domain_size: Option<usize>,
-    ) -> Result<Vec<FieldElement<F>>, FFTError>;
+    ) -> Result<Vec<FieldElement<E>>, FFTError>;
     fn evaluate_offset_fft(
         &self,
         blowup_factor: usize,
         domain_size: Option<usize>,
         offset: &FieldElement<F>,
-    ) -> Result<Vec<FieldElement<F>>, FFTError>;
+    ) -> Result<Vec<FieldElement<E>>, FFTError>;
     fn interpolate_fft(
-        fft_evals: &[FieldElement<F>],
-    ) -> Result<Polynomial<FieldElement<F>>, FFTError>;
+        fft_evals: &[FieldElement<E>],
+    ) -> Result<Polynomial<FieldElement<E>>, FFTError>;
     fn interpolate_offset_fft(
-        fft_evals: &[FieldElement<F>],
+        fft_evals: &[FieldElement<E>],
         offset: &FieldElement<F>,
-    ) -> Result<Polynomial<FieldElement<F>>, FFTError>;
+    ) -> Result<Polynomial<FieldElement<E>>, FFTError>;
 }
 
-impl<F: IsFFTField> FFTPoly<F> for Polynomial<FieldElement<F>> {
+impl<F: IsFFTField + IsSubFieldOf<E>, E: IsField> FFTPoly<F, E> for Polynomial<FieldElement<E>> {
     /// Returns `N` evaluations of this polynomial using FFT (so the results
     /// are P(w^i), with w being a primitive root of unity).
     /// `N = max(self.coeff_len(), domain_size).next_power_of_two() * blowup_factor`.
@@ -45,7 +46,7 @@ impl<F: IsFFTField> FFTPoly<F> for Polynomial<FieldElement<F>> {
         &self,
         blowup_factor: usize,
         domain_size: Option<usize>,
-    ) -> Result<Vec<FieldElement<F>>, FFTError> {
+    ) -> Result<Vec<FieldElement<E>>, FFTError> {
         let domain_size = domain_size.unwrap_or(0);
         let len = std::cmp::max(self.coeff_len(), domain_size).next_power_of_two() * blowup_factor;
 
@@ -82,7 +83,7 @@ impl<F: IsFFTField> FFTPoly<F> for Polynomial<FieldElement<F>> {
 
         #[cfg(all(not(feature = "metal"), not(feature = "cuda")))]
         {
-            evaluate_fft_cpu(&coeffs)
+            evaluate_fft_cpu::<F, E>(&coeffs)
         }
     }
 
@@ -95,15 +96,15 @@ impl<F: IsFFTField> FFTPoly<F> for Polynomial<FieldElement<F>> {
         blowup_factor: usize,
         domain_size: Option<usize>,
         offset: &FieldElement<F>,
-    ) -> Result<Vec<FieldElement<F>>, FFTError> {
+    ) -> Result<Vec<FieldElement<E>>, FFTError> {
         let scaled = self.scale(offset);
-        scaled.evaluate_fft(blowup_factor, domain_size)
+        <Polynomial<FieldElement<E>> as FFTPoly<F, E>>::evaluate_fft(&scaled, blowup_factor, domain_size)
     }
 
     /// Returns a new polynomial that interpolates `(w^i, fft_evals[i])`, with `w` being a
     /// Nth primitive root of unity, and `i in 0..N`, with `N = fft_evals.len()`.
     /// This is considered to be the inverse operation of [Self::evaluate_fft()].
-    fn interpolate_fft(fft_evals: &[FieldElement<F>]) -> Result<Self, FFTError> {
+    fn interpolate_fft(fft_evals: &[FieldElement<E>]) -> Result<Self, FFTError> {
         #[cfg(feature = "metal")]
         {
             if !F::field_name().is_empty() {
@@ -128,7 +129,7 @@ impl<F: IsFFTField> FFTPoly<F> for Polynomial<FieldElement<F>> {
 
         #[cfg(all(not(feature = "metal"), not(feature = "cuda")))]
         {
-            interpolate_fft_cpu(fft_evals)
+            interpolate_fft_cpu::<F, E>(fft_evals)
         }
     }
 
@@ -136,49 +137,52 @@ impl<F: IsFFTField> FFTPoly<F> for Polynomial<FieldElement<F>> {
     /// Nth primitive root of unity, and `i in 0..N`, with `N = fft_evals.len()`.
     /// This is considered to be the inverse operation of [Self::evaluate_offset_fft()].
     fn interpolate_offset_fft(
-        fft_evals: &[FieldElement<F>],
+        fft_evals: &[FieldElement<E>],
         offset: &FieldElement<F>,
-    ) -> Result<Polynomial<FieldElement<F>>, FFTError> {
-        let scaled = Polynomial::interpolate_fft(fft_evals)?;
+    ) -> Result<Polynomial<FieldElement<E>>, FFTError> {
+        let scaled = <Polynomial<FieldElement<E>> as FFTPoly<F, E>>::interpolate_fft(fft_evals)?;
         Ok(scaled.scale(&offset.inv().unwrap()))
     }
 }
 
-pub fn compose_fft<F>(
-    poly_1: &Polynomial<FieldElement<F>>,
-    poly_2: &Polynomial<FieldElement<F>>,
-) -> Polynomial<FieldElement<F>>
+pub fn compose_fft<F, E>(
+    poly_1: &Polynomial<FieldElement<E>>,
+    poly_2: &Polynomial<FieldElement<E>>,
+) -> Polynomial<FieldElement<E>>
 where
-    F: IsFFTField,
+    F: IsFFTField + IsSubFieldOf<E>,
+    E: IsField
 {
-    let poly_2_evaluations = poly_2.evaluate_fft(1, None).unwrap();
+    let poly_2_evaluations = <Polynomial<FieldElement<E>> as FFTPoly<F, E>>::evaluate_fft(&poly_2, 1, None).unwrap();
 
     let values: Vec<_> = poly_2_evaluations
         .iter()
         .map(|value| poly_1.evaluate(value))
         .collect();
 
-    Polynomial::interpolate_fft(values.as_slice()).unwrap()
+        <Polynomial<FieldElement<E>> as FFTPoly<F, E>>::interpolate_fft(values.as_slice()).unwrap()
 }
 
-pub fn evaluate_fft_cpu<F>(coeffs: &[FieldElement<F>]) -> Result<Vec<FieldElement<F>>, FFTError>
+pub fn evaluate_fft_cpu<F, E>(coeffs: &[FieldElement<E>]) -> Result<Vec<FieldElement<E>>, FFTError>
 where
-    F: IsFFTField,
+    F: IsFFTField + IsSubFieldOf<E>,
+    E: IsField
 {
     let order = coeffs.len().trailing_zeros();
-    let twiddles = roots_of_unity::get_twiddles(order.into(), RootsConfig::BitReverse)?;
+    let twiddles = roots_of_unity::get_twiddles::<F>(order.into(), RootsConfig::BitReverse)?;
     // Bit reverse order is needed for NR DIT FFT.
     ops::fft(coeffs, &twiddles)
 }
 
-pub fn interpolate_fft_cpu<F>(
-    fft_evals: &[FieldElement<F>],
-) -> Result<Polynomial<FieldElement<F>>, FFTError>
+pub fn interpolate_fft_cpu<F, E>(
+    fft_evals: &[FieldElement<E>],
+) -> Result<Polynomial<FieldElement<E>>, FFTError>
 where
-    F: IsFFTField,
+    F: IsFFTField + IsSubFieldOf<E>,
+    E: IsField
 {
     let order = fft_evals.len().trailing_zeros();
-    let twiddles = roots_of_unity::get_twiddles(order.into(), RootsConfig::BitReverseInversed)?;
+    let twiddles = roots_of_unity::get_twiddles::<F>(order.into(), RootsConfig::BitReverseInversed)?;
 
     let coeffs = ops::fft(fft_evals, &twiddles)?;
 
@@ -206,7 +210,7 @@ mod tests {
         let twiddles =
             get_powers_of_primitive_root(order.into(), len, RootsConfig::Natural).unwrap();
 
-        let fft_eval = poly.evaluate_fft(1, None).unwrap();
+        let fft_eval = <Polynomial<FieldElement<F>> as FFTPoly<F, F>>::evaluate_fft(&poly, 1, None).unwrap();
         let naive_eval = poly.evaluate_slice(&twiddles);
 
         (fft_eval, naive_eval)
@@ -238,7 +242,7 @@ mod tests {
             get_powers_of_primitive_root(order, 1 << order, RootsConfig::Natural).unwrap();
 
         let naive_poly = Polynomial::interpolate(&twiddles, fft_evals).unwrap();
-        let fft_poly = Polynomial::interpolate_fft(fft_evals).unwrap();
+        let fft_poly = <Polynomial<FieldElement<F>> as FFTPoly<F, F>>::interpolate_fft(fft_evals).unwrap();
 
         (fft_poly, naive_poly)
     }
@@ -259,8 +263,8 @@ mod tests {
     fn gen_fft_interpolate_and_evaluate<F: IsFFTField>(
         poly: Polynomial<FieldElement<F>>,
     ) -> (Polynomial<FieldElement<F>>, Polynomial<FieldElement<F>>) {
-        let eval = poly.evaluate_fft(1, None).unwrap();
-        let new_poly = Polynomial::interpolate_fft(&eval).unwrap();
+        let eval = <Polynomial<FieldElement<F>> as FFTPoly<F, F>>::evaluate_fft(&poly, 1, None).unwrap();
+        let new_poly = <Polynomial<FieldElement<F>> as FFTPoly<F, F>>::interpolate_fft(&eval).unwrap();
 
         (poly, new_poly)
     }
@@ -357,7 +361,7 @@ mod tests {
             let p = Polynomial::new(&[FE::new(0), FE::new(2)]);
             let q = Polynomial::new(&[FE::new(0), FE::new(0), FE::new(0), FE::new(1)]);
             assert_eq!(
-                compose_fft(&p, &q),
+                compose_fft::<F, F>(&p, &q),
                 Polynomial::new(&[FE::new(0), FE::new(0), FE::new(0), FE::new(2)])
             );
         }

@@ -4,7 +4,7 @@ use lambdaworks_crypto::merkle_tree::proof::Proof;
 use lambdaworks_math::{
     field::{
         element::FieldElement, fields::fft_friendly::stark_252_prime_field::Stark252PrimeField,
-        traits::IsFFTField,
+        traits::{IsFFTField, IsField},
     },
     traits::Serializable,
 };
@@ -22,7 +22,7 @@ use crate::{
 use super::options::ProofOptions;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DeepPolynomialOpening<F: IsFFTField> {
+pub struct DeepPolynomialOpening<F: IsField> {
     pub lde_composition_poly_proof: Proof<Commitment>,
     pub lde_composition_poly_parts_evaluation: Vec<FieldElement<F>>,
     pub lde_trace_merkle_proofs: Vec<Proof<Commitment>>,

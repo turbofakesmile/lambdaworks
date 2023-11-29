@@ -34,6 +34,7 @@ where
     F: IsFFTField,
 {
     type Field = F;
+    type FieldExtension = F;
     type RAPChallenges = ();
     type PublicInputs = FibonacciPublicInputs<Self::Field>;
 

@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use lambdaworks_math::{
     fft::{cpu::roots_of_unity::get_powers_of_primitive_root_coset, polynomial::FFTPoly},
-    field::{element::FieldElement, traits::IsFFTField},
+    field::{element::FieldElement, traits::{IsFFTField, IsField, IsSubFieldOf}},
     polynomial::Polynomial,
 };
 
@@ -14,7 +14,8 @@ use super::{
 
 /// AIR is a representation of the Constraints
 pub trait AIR {
-    type Field: IsFFTField;
+    type Field: IsFFTField + IsSubFieldOf<Self::FieldExtension>;
+    type FieldExtension: IsField;
     type RAPChallenges;
     type PublicInputs;
 
@@ -34,7 +35,7 @@ pub trait AIR {
 
     fn build_rap_challenges(
         &self,
-        transcript: &mut impl IsStarkTranscript<Self::Field>,
+        transcript: &mut impl IsStarkTranscript<Self::FieldExtension>,
     ) -> Self::RAPChallenges;
 
     fn number_auxiliary_rap_columns(&self) -> usize;

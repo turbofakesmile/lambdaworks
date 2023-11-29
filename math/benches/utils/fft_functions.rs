@@ -1,11 +1,11 @@
 #![allow(dead_code)]
 // clippy has false positive in benchmarks
 use criterion::black_box;
-use lambdaworks_math::fft::cpu::{
+use lambdaworks_math::{fft::cpu::{
     bit_reversing::in_place_bit_reverse_permute,
     fft::{in_place_nr_2radix_fft, in_place_rn_2radix_fft},
     roots_of_unity::get_twiddles,
-};
+}, field::element::FieldElement};
 use lambdaworks_math::{
     fft::polynomial::FFTPoly, field::traits::RootsConfig, polynomial::Polynomial,
 };
@@ -29,9 +29,9 @@ pub fn bitrev_permute(input: &mut [FE]) {
 }
 
 pub fn poly_evaluate_fft(poly: &Polynomial<FE>) -> Vec<FE> {
-    poly.evaluate_fft(black_box(1), black_box(None)).unwrap()
+    <Polynomial<FieldElement<F>> as FFTPoly<F, F>>::evaluate_fft(&poly, black_box(1), black_box(None)).unwrap()
 }
 
 pub fn poly_interpolate_fft(evals: &[FE]) {
-    Polynomial::interpolate_fft(evals).unwrap();
+    <Polynomial<FieldElement<F>> as FFTPoly<F, F>>::interpolate_fft(evals).unwrap();
 }
