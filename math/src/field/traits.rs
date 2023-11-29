@@ -26,22 +26,27 @@ impl<F> IsSubFieldOf<F> for F
 where
     F: IsField,
 {
+    #[inline(always)]
     fn mul(a: &Self::BaseType, b: &F::BaseType) -> F::BaseType {
         F::mul(a, b)
     }
 
+    #[inline(always)]
     fn add(a: &Self::BaseType, b: &F::BaseType) -> F::BaseType {
         F::add(a, b)
     }
 
+    #[inline(always)]
     fn sub(a: &Self::BaseType, b: &F::BaseType) -> Self::BaseType {
         F::sub(a, b)
     }
 
+    #[inline(always)]
     fn div(a: &Self::BaseType, b: &F::BaseType) -> F::BaseType {
         F::div(a, b)
     }
 
+    #[inline(always)]
     fn eq(a: &Self::BaseType, b: &F::BaseType) -> bool {
         F::eq(a, b)
     }
