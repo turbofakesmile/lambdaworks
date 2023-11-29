@@ -58,8 +58,8 @@ where
     pub(crate) trace_polys_aux: Vec<Polynomial<FieldElement<E>>>,
     pub(crate) lde_trace: TraceTable<F>,
     pub(crate) lde_trace_aux: Option<TraceTable<E>>,
-    pub(crate) lde_trace_merkle_trees: Vec<BatchedMerkleTree<F>>,
-    pub(crate) lde_trace_merkle_trees_aux: Vec<BatchedMerkleTree<E>>,
+    pub(crate) lde_trace_merkle_tree: BatchedMerkleTree<F>,
+    pub(crate) lde_trace_merkle_tree_aux: Option<BatchedMerkleTree<E>>,
     pub(crate) lde_trace_merkle_roots: Vec<Commitment>,
     pub(crate) rap_challenges: A::RAPChallenges,
 }
@@ -75,7 +75,7 @@ where
     pub(crate) composition_poly_root: Commitment,
 }
 
-pub struct Round3<F: IsFFTField> {
+pub struct Round3<F: IsField> {
     trace_ood_evaluations: Vec<Vec<FieldElement<F>>>,
     composition_poly_parts_ood_evaluation: Vec<FieldElement<F>>,
 }
@@ -111,23 +111,24 @@ pub trait IsStarkProver {
     type Field: IsFFTField + IsSubFieldOf<Self::FieldExtension>;
     type FieldExtension: IsField;
 
-    fn batch_commit(
-        vectors: &[Vec<FieldElement<Self::Field>>],
-    ) -> (BatchedMerkleTree<Self::Field>, Commitment)
+    fn batch_commit<F>(
+        vectors: &[Vec<FieldElement<F>>],
+    ) -> (BatchedMerkleTree<F>, Commitment)
     where
-        FieldElement<Self::Field>: Serializable,
+        F: IsField,
+        FieldElement<F>: Serializable,
     {
-        let tree = BatchedMerkleTree::<Self::Field>::build(vectors);
+        let tree = BatchedMerkleTree::<F>::build(vectors);
         let commitment = tree.root;
         (tree, commitment)
     }
 
     #[allow(clippy::type_complexity)]
-    fn interpolate_and_commit<F, E>(
+    fn interpolate_and_commit<E>(
         trace: &TraceTable<E>,
-        domain: &Domain<F>,
+        domain: &Domain<Self::Field>,
         step_size: usize,
-        transcript: &mut impl IsStarkTranscript<E>,
+        transcript: &mut impl IsStarkTranscript<Self::FieldExtension>,
     ) -> (
         Vec<Polynomial<FieldElement<E>>>,
         Vec<Vec<FieldElement<E>>>,
@@ -135,8 +136,9 @@ pub trait IsStarkProver {
         Commitment,
     )
     where
-        F: IsFFTField,
+        Self::Field: IsFFTField + IsSubFieldOf<E>,
         E: IsField,
+        FieldElement<Self::Field>: Serializable + Send + Sync,
         FieldElement<E>: Serializable + Send + Sync,
     {
         let trace_polys = trace.compute_trace_polys();
@@ -165,12 +167,14 @@ pub trait IsStarkProver {
         )
     }
 
-    fn compute_lde_trace_evaluations(
-        trace_polys: &[Polynomial<FieldElement<Self::Field>>],
+    fn compute_lde_trace_evaluations<E>(
+        trace_polys: &[Polynomial<FieldElement<E>>],
         domain: &Domain<Self::Field>,
-    ) -> Vec<Vec<FieldElement<Self::Field>>>
+    ) -> Vec<Vec<FieldElement<E>>>
     where
         FieldElement<Self::Field>: Send + Sync,
+        E: IsField,
+        Self::Field: IsSubFieldOf<E>
     {
         #[cfg(not(feature = "parallel"))]
         let trace_polys_iter = trace_polys.iter();
@@ -179,14 +183,14 @@ pub trait IsStarkProver {
 
         trace_polys_iter
             .map(|poly| {
-                evaluate_polynomial_on_lde_domain(
+                evaluate_polynomial_on_lde_domain::<Self::Field, E>(
                     poly,
                     domain.blowup_factor,
                     domain.interpolation_domain_size,
                     &domain.coset_offset,
                 )
             })
-            .collect::<Result<Vec<Vec<FieldElement<Self::Field>>>, FFTError>>()
+            .collect::<Result<Vec<Vec<FieldElement<E>>>, FFTError>>()
             .unwrap()
     }
 
@@ -198,31 +202,32 @@ pub trait IsStarkProver {
     ) -> Result<Round1<Self::Field, Self::FieldExtension, A>, ProvingError>
     where
         A: AIR<Field = Self::Field, FieldExtension = Self::FieldExtension>,
-        FieldElement<Self::FieldExtension>: Serializable,
+        FieldElement<Self::FieldExtension>: Serializable + Send + Sync,
         FieldElement<Self::Field>: Serializable + Send + Sync,
     {
-        let (mut trace_polys, evaluations, main_merkle_tree, main_merkle_root) =
-            Self::interpolate_and_commit::<A>(main_trace, domain, transcript);
+        let (mut trace_polys, evaluations, lde_trace_merkle_tree, main_merkle_root) =
+            Self::interpolate_and_commit::<Self::Field>(main_trace, domain, A::STEP_SIZE, transcript);
         let lde_trace = TraceTable::from_columns(evaluations, A::STEP_SIZE);
 
         let rap_challenges = air.build_rap_challenges(transcript);
 
         let aux_trace = air.build_auxiliary_trace(main_trace, &rap_challenges);
 
-        let mut lde_trace_merkle_trees = vec![main_merkle_tree];
         let mut lde_trace_merkle_roots = vec![main_merkle_root];
         let mut lde_trace_aux = None;
+        let mut lde_trace_merkle_tree_aux = None;
+        let mut trace_polys_aux = Vec::new();
+
         if !aux_trace.is_empty() {
             // Check that this is valid for interpolation
-            let (aux_trace_polys, aux_trace_polys_evaluations, aux_merkle_tree, aux_merkle_root) =
-                Self::interpolate_and_commit::<A>(&aux_trace, domain, transcript);
-            trace_polys.extend_from_slice(&aux_trace_polys);
-            // evaluations.extend_from_slice(&aux_trace_polys_evaluations);
+            let (polys, aux_trace_polys_evaluations, merkle_tree, aux_merkle_root) =
+                Self::interpolate_and_commit::<Self::FieldExtension>(&aux_trace, domain, A::STEP_SIZE, transcript);
+            trace_polys_aux.extend(polys);
+            lde_trace_merkle_tree_aux = Some(merkle_tree);
             lde_trace_aux = Some(TraceTable::from_columns(
                 aux_trace_polys_evaluations,
                 A::STEP_SIZE,
             ));
-            lde_trace_merkle_trees.push(aux_merkle_tree);
             lde_trace_merkle_roots.push(aux_merkle_root);
         }
 
@@ -232,17 +237,17 @@ pub trait IsStarkProver {
             lde_trace,
             lde_trace_aux,
             lde_trace_merkle_roots,
-            lde_trace_merkle_trees,
-            lde_trace_merkle_trees_aux,
+            lde_trace_merkle_tree,
+            lde_trace_merkle_tree_aux,
             rap_challenges,
         })
     }
 
     fn commit_composition_polynomial(
-        lde_composition_poly_parts_evaluations: &[Vec<FieldElement<Self::Field>>],
-    ) -> (BatchedMerkleTree<Self::Field>, Commitment)
+        lde_composition_poly_parts_evaluations: &[Vec<FieldElement<Self::FieldExtension>>],
+    ) -> (BatchedMerkleTree<Self::FieldExtension>, Commitment)
     where
-        FieldElement<Self::Field>: Serializable,
+        FieldElement<Self::FieldExtension>: Serializable,
     {
         // TODO: Remove clones
         let mut lde_composition_poly_evaluations = Vec::new();
@@ -270,8 +275,8 @@ pub trait IsStarkProver {
         air: &A,
         domain: &Domain<Self::Field>,
         round_1_result: &Round1<Self::Field, Self::FieldExtension, A>,
-        transition_coefficients: &[FieldElement<Self::Field>],
-        boundary_coefficients: &[FieldElement<Self::Field>],
+        transition_coefficients: &[FieldElement<Self::FieldExtension>],
+        boundary_coefficients: &[FieldElement<Self::FieldExtension>],
     ) -> Round2<Self::FieldExtension>
     where
         A: AIR<Field = Self::Field, FieldExtension = Self::FieldExtension> + Send + Sync,
@@ -285,6 +290,7 @@ pub trait IsStarkProver {
         let constraint_evaluations = evaluator.evaluate(
             air,
             &round_1_result.lde_trace,
+            &round_1_result.lde_trace_aux,
             domain,
             transition_coefficients,
             boundary_coefficients,
@@ -330,8 +336,8 @@ pub trait IsStarkProver {
         domain: &Domain<Self::Field>,
         round_1_result: &Round1<Self::Field, Self::FieldExtension, A>,
         round_2_result: &Round2<Self::FieldExtension>,
-        z: &FieldElement<Self::Field>,
-    ) -> Round3<Self::Field>
+        z: &FieldElement<Self::FieldExtension>,
+    ) -> Round3<Self::FieldExtension>
     where
         FieldElement<Self::Field>: Serializable,
         FieldElement<Self::FieldExtension>: Serializable,
@@ -355,12 +361,13 @@ pub trait IsStarkProver {
         // polynomial and `g` is the primitive root of unity used when interpolating `t`.
         let trace_ood_evaluations = crate::trace::get_trace_evaluations(
             &round_1_result.trace_polys,
+            &round_1_result.trace_polys_aux,
             z,
             &air.context().transition_offsets,
             &domain.trace_primitive_root,
         );
 
-        Round3 {
+        Round3::<Self::FieldExtension> {
             trace_ood_evaluations,
             composition_poly_parts_ood_evaluation,
         }
@@ -474,7 +481,7 @@ pub trait IsStarkProver {
     fn compute_deep_composition_poly<A>(
         air: &A,
         trace_polys: &[Polynomial<FieldElement<Self::Field>>],
-        round_2_result: &Round2<Self::Field>,
+        round_2_result: &Round2<Self::FieldExtension>,
         round_3_result: &Round3<Self::Field>,
         z: &FieldElement<Self::Field>,
         primitive_root: &FieldElement<Self::Field>,
@@ -484,6 +491,7 @@ pub trait IsStarkProver {
     where
         A: AIR<Field = Self::Field, FieldExtension = Self::FieldExtension>,
         FieldElement<Self::Field>: Serializable + Send + Sync,
+        FieldElement<Self::FieldExtension>: Serializable + Send + Sync,
     {
         let z_power = z.pow(round_2_result.composition_poly_parts.len());
 
@@ -554,7 +562,7 @@ pub trait IsStarkProver {
         trace_terms: &Polynomial<FieldElement<Self::Field>>,
         (i, t_j): (usize, &Polynomial<FieldElement<Self::Field>>),
         trace_frame_length: usize,
-        trace_terms_gammas: &[FieldElement<Self::Field>],
+        trace_terms_gammas: &[FieldElement<Self::FieldExtension>],
         trace_frame_evaluations: &[Vec<FieldElement<Self::Field>>],
         transition_offsets: &[usize],
         (z, primitive_root): (&FieldElement<Self::Field>, &FieldElement<Self::Field>),

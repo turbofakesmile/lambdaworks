@@ -90,12 +90,16 @@ impl<F: IsField> Polynomial<FieldElement<F>> {
         Ok(result)
     }
 
-    pub fn evaluate(&self, x: &FieldElement<F>) -> FieldElement<F> {
+    pub fn evaluate<E>(&self, x: &FieldElement<E>) -> FieldElement<E>
+    where
+        E: IsField,
+        F: IsSubFieldOf<E>
+    {
         self.coefficients
             .iter()
             .rev()
             .fold(FieldElement::zero(), |acc, coeff| {
-                acc * x.to_owned() + coeff
+                coeff + acc * x.to_owned()
             })
     }
 

@@ -1,7 +1,7 @@
 use crate::table::{Table, TableView};
 use lambdaworks_math::fft::errors::FFTError;
 use lambdaworks_math::fft::polynomial::FFTPoly;
-use lambdaworks_math::field::traits::IsField;
+use lambdaworks_math::field::traits::{IsField, IsSubFieldOf};
 use lambdaworks_math::{
     field::{element::FieldElement, traits::IsFFTField},
     polynomial::Polynomial,
@@ -198,20 +198,21 @@ impl<'t, F: IsField> StepView<'t, F> {
 /// compute a transition.
 /// Example: For a simple Fibonacci computation, if t(x) is the trace polynomial of
 /// the computation, this will output evaluations t(x), t(g * x), t(g^2 * z).
-pub fn get_trace_evaluations<F: IsFFTField>(
+pub fn get_trace_evaluations<F: IsFFTField + IsSubFieldOf<E>, E: IsField>(
     trace_polys: &[Polynomial<FieldElement<F>>],
-    x: &FieldElement<F>,
+    trace_polys_aux: &[Polynomial<FieldElement<E>>],
+    x: &FieldElement<E>,
     frame_offsets: &[usize],
     primitive_root: &FieldElement<F>,
-) -> Vec<Vec<FieldElement<F>>> {
+) -> Vec<Vec<FieldElement<E>>> {
     frame_offsets
         .iter()
-        .map(|offset| x * primitive_root.pow(*offset))
+        .map(|offset| primitive_root.pow(*offset) * x)
         .map(|eval_point| {
             trace_polys
                 .iter()
                 .map(|poly| poly.evaluate(&eval_point))
-                .collect::<Vec<FieldElement<F>>>()
+                .collect::<Vec<FieldElement<E>>>()
         })
         .collect()
 }

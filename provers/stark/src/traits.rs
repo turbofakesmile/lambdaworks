@@ -31,7 +31,7 @@ pub trait AIR {
         &self,
         main_trace: &TraceTable<Self::Field>,
         rap_challenges: &Self::RAPChallenges,
-    ) -> TraceTable<Self::Field>;
+    ) -> TraceTable<Self::FieldExtension>;
 
     fn build_rap_challenges(
         &self,

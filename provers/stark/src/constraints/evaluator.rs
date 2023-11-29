@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use lambdaworks_math::{
     fft::{cpu::roots_of_unity::get_powers_of_primitive_root_coset, errors::FFTError},
-    field::{element::FieldElement, traits::IsFFTField},
+    field::{element::FieldElement, traits::{IsFFTField, IsField, IsSubFieldOf}},
     polynomial::Polynomial,
     traits::Serializable,
 };
@@ -19,15 +19,18 @@ use crate::trace::TraceTable;
 use crate::traits::AIR;
 use crate::{frame::Frame, prover::evaluate_polynomial_on_lde_domain};
 
-pub struct ConstraintEvaluator<F: IsFFTField> {
+pub struct ConstraintEvaluator<F: IsFFTField + IsSubFieldOf<E>, E: IsField> {
     boundary_constraints: BoundaryConstraints<F>,
+    boundary_constraints_aux: BoundaryConstraints<E>,
 }
-impl<F: IsFFTField> ConstraintEvaluator<F> {
+
+impl<F: IsFFTField + IsSubFieldOf<E>, E: IsField> ConstraintEvaluator<F, E> {
     pub fn new<A: AIR<Field = F>>(air: &A, rap_challenges: &A::RAPChallenges) -> Self {
         let boundary_constraints = air.boundary_constraints(rap_challenges);
 
         Self {
             boundary_constraints,
+            boundary_constraints_aux: BoundaryConstraints::new()
         }
     }
 
@@ -35,11 +38,12 @@ impl<F: IsFFTField> ConstraintEvaluator<F> {
         &self,
         air: &A,
         lde_trace: &TraceTable<F>,
+        lde_trace_aux: &Option<TraceTable<E>>,
         domain: &Domain<F>,
-        transition_coefficients: &[FieldElement<F>],
-        boundary_coefficients: &[FieldElement<F>],
+        transition_coefficients: &[FieldElement<E>],
+        boundary_coefficients: &[FieldElement<E>],
         rap_challenges: &A::RAPChallenges,
-    ) -> Vec<FieldElement<F>>
+    ) -> Vec<FieldElement<E>>
     where
         FieldElement<F>: Serializable + Send + Sync,
         A: Send + Sync,
