@@ -37,7 +37,7 @@ where
     }
 
     #[inline(always)]
-    fn sub(a: &Self::BaseType, b: &F::BaseType) -> Self::BaseType {
+    fn sub(a: &Self::BaseType, b: &F::BaseType) -> F::BaseType {
         F::sub(a, b)
     }
 

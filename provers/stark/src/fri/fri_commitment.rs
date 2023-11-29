@@ -12,7 +12,7 @@ pub struct FriLayer<F, E, B>
 where
     F: IsField + IsSubFieldOf<E>,
     E: IsField,
-    FieldElement<F>: Serializable,
+    FieldElement<E>: Serializable,
     B: IsMerkleTreeBackend,
 {
     pub evaluation: Vec<FieldElement<E>>,
@@ -25,7 +25,7 @@ impl<F, E, B> FriLayer<F, E, B>
 where
     F: IsField + IsSubFieldOf<E>,
     E: IsField,
-    FieldElement<F>: Serializable,
+    FieldElement<E>: Serializable,
     B: IsMerkleTreeBackend,
 {
     pub fn new(

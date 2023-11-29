@@ -1,6 +1,7 @@
 use crate::table::{Table, TableView};
 use lambdaworks_math::fft::errors::FFTError;
 use lambdaworks_math::fft::polynomial::FFTPoly;
+use lambdaworks_math::field::traits::IsField;
 use lambdaworks_math::{
     field::{element::FieldElement, traits::IsFFTField},
     polynomial::Polynomial,
@@ -16,12 +17,12 @@ use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 /// STARK protocol, such as the step size (number of consecutive rows of the table)
 /// of the computation being proven.
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
-pub struct TraceTable<F: IsFFTField> {
+pub struct TraceTable<F: IsField> {
     pub table: Table<F>,
     pub step_size: usize,
 }
 
-impl<'t, F: IsFFTField> TraceTable<F> {
+impl<'t, F: IsField> TraceTable<F> {
     pub fn new(data: Vec<FieldElement<F>>, n_columns: usize, step_size: usize) -> Self {
         let table = Table::new(data, n_columns);
         Self { table, step_size }
@@ -168,12 +169,12 @@ impl<'t, F: IsFFTField> TraceTable<F> {
 /// access the steps in a trace, in order to grab elements to calculate
 /// constraint evaluations.
 #[derive(Debug, Clone, PartialEq)]
-pub struct StepView<'t, F: IsFFTField> {
+pub struct StepView<'t, F: IsField> {
     pub table_view: TableView<'t, F>,
     pub step_idx: usize,
 }
 
-impl<'t, F: IsFFTField> StepView<'t, F> {
+impl<'t, F: IsField> StepView<'t, F> {
     pub fn new(table_view: TableView<'t, F>, step_idx: usize) -> Self {
         StepView {
             table_view,

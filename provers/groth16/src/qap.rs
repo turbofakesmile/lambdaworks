@@ -91,7 +91,9 @@ impl QuadraticArithmeticProgram {
     fn build_variable_polynomials(from_matrix: &[Vec<FrElement>]) -> Vec<Polynomial<FrElement>> {
         from_matrix
             .iter()
-            .map(|row| Polynomial::interpolate_fft(row).unwrap())
+            .map(|row| {
+                <Polynomial<FrElement> as FFTPoly<FrField, FrField>>::interpolate_fft(row).unwrap()
+            })
             .collect()
     }
 

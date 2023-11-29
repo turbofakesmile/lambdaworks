@@ -2,10 +2,12 @@ pub mod fri_commitment;
 pub mod fri_decommit;
 mod fri_functions;
 
-use lambdaworks_math::{fft::cpu::bit_reversing::in_place_bit_reverse_permute, field::traits::IsSubFieldOf};
 use lambdaworks_math::fft::polynomial::FFTPoly;
 use lambdaworks_math::field::traits::{IsFFTField, IsField};
 use lambdaworks_math::traits::Serializable;
+use lambdaworks_math::{
+    fft::cpu::bit_reversing::in_place_bit_reverse_permute, field::traits::IsSubFieldOf,
+};
 pub use lambdaworks_math::{
     field::{element::FieldElement, fields::u64_prime_field::U64PrimeField},
     polynomial::Polynomial,
@@ -26,15 +28,15 @@ pub fn commit_phase<F: IsFFTField + IsSubFieldOf<E>, E: IsField>(
     domain_size: usize,
 ) -> (
     FieldElement<E>,
-    Vec<FriLayer<F, E, BatchedMerkleTreeBackend<F>>>,
+    Vec<FriLayer<F, E, BatchedMerkleTreeBackend<E>>>,
 )
 where
-    FieldElement<F>: Serializable,
+    FieldElement<E>: Serializable,
 {
     let mut domain_size = domain_size;
 
     let mut fri_layer_list = Vec::with_capacity(number_layers);
-    let mut current_layer: FriLayer<F, BatchedMerkleTreeBackend<F>>;
+    let mut current_layer: FriLayer<F, E, BatchedMerkleTreeBackend<E>>;
     let mut current_poly = p_0;
 
     let mut coset_offset = coset_offset.clone();
@@ -73,11 +75,11 @@ where
 }
 
 pub fn query_phase<F: IsFFTField + IsSubFieldOf<E>, E: IsField>(
-    fri_layers: &Vec<FriLayer<F, E, BatchedMerkleTreeBackend<F>>>,
+    fri_layers: &Vec<FriLayer<F, E, BatchedMerkleTreeBackend<E>>>,
     iotas: &[usize],
 ) -> Vec<FriDecommitment<E>>
 where
-    FieldElement<F>: Serializable,
+    FieldElement<E>: Serializable,
 {
     if !fri_layers.is_empty() {
         let query_list = iotas
@@ -114,10 +116,9 @@ pub fn new_fri_layer<F: IsFFTField + IsSubFieldOf<E>, E: IsField>(
     poly: &Polynomial<FieldElement<E>>,
     coset_offset: &FieldElement<F>,
     domain_size: usize,
-) -> crate::fri::fri_commitment::FriLayer<F, E, BatchedMerkleTreeBackend<F>>
+) -> crate::fri::fri_commitment::FriLayer<F, E, BatchedMerkleTreeBackend<E>>
 where
-    F: IsFFTField,
-    FieldElement<F>: Serializable,
+    FieldElement<E>: Serializable,
 {
     let mut evaluation = poly
         .evaluate_offset_fft(1, Some(domain_size), coset_offset)

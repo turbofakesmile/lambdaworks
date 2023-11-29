@@ -24,7 +24,7 @@ pub fn validate_trace<F: IsFFTField + IsPrimeField, A: AIR<Field = F>>(
     let trace_columns: Vec<_> = trace_polys
         .iter()
         .map(|poly| {
-            poly.evaluate_fft(1, Some(domain.interpolation_domain_size))
+            <Polynomial<FieldElement<F>> as FFTPoly<F, F>>::evaluate_fft(&poly, 1, Some(domain.interpolation_domain_size))
                 .unwrap()
         })
         .collect();
@@ -35,7 +35,7 @@ pub fn validate_trace<F: IsFFTField + IsPrimeField, A: AIR<Field = F>>(
         .get_periodic_column_polynomials()
         .iter()
         .map(|poly| {
-            poly.evaluate_fft(1, Some(domain.interpolation_domain_size))
+            <Polynomial<FieldElement<F>> as FFTPoly<F, F>>::evaluate_fft(&poly, 1, Some(domain.interpolation_domain_size))
                 .unwrap()
         })
         .collect();
