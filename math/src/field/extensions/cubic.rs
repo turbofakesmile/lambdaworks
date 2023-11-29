@@ -111,7 +111,7 @@ where
         let d = a[0].pow(3_u64)
             + a[1].pow(3_u64) * Q::residue()
             + a[2].pow(3_u64) * Q::residue().pow(2_u64)
-            - three * &a[0] * &a[1] * &a[2] * Q::residue();
+            - &a[0] * &a[1] * &a[2] * Q::residue() * three ;
         let inv = d.inv()?;
         Ok([
             (a[0].pow(2_u64) - &a[1] * &a[2] * Q::residue()) * &inv,

@@ -32,7 +32,7 @@ use serde::ser::{Serialize, SerializeStruct, Serializer};
 use serde::Deserialize;
 
 use super::fields::montgomery_backed_prime_fields::{IsModulus, MontgomeryBackendPrimeField};
-use super::traits::{IsPrimeField, LegendreSymbol};
+use super::traits::{IsPrimeField, IsSubFieldOf, LegendreSymbol};
 
 /// A field element with operations algorithms defined in `F`
 #[allow(clippy::derived_hash_with_manual_eq)]
@@ -119,59 +119,64 @@ where
 impl<F> Eq for FieldElement<F> where F: IsField {}
 
 /// Addition operator overloading for field elements
-impl<F> Add<&FieldElement<F>> for &FieldElement<F>
+impl<F, L> Add<&FieldElement<L>> for &FieldElement<F>
 where
-    F: IsField,
+    F: IsField + IsSubFieldOf<L>,
+    L: IsField,
 {
-    type Output = FieldElement<F>;
+    type Output = FieldElement<L>;
 
-    fn add(self, rhs: &FieldElement<F>) -> Self::Output {
+    fn add(self, rhs: &FieldElement<L>) -> Self::Output {
         Self::Output {
-            value: F::add(&self.value, &rhs.value),
+            value: <F as IsSubFieldOf<L>>::add(&self.value, &rhs.value),
         }
     }
 }
 
-impl<F> Add<FieldElement<F>> for FieldElement<F>
+impl<F, L> Add<FieldElement<L>> for FieldElement<F>
 where
-    F: IsField,
+    F: IsField + IsSubFieldOf<L>,
+    L: IsField,
 {
-    type Output = FieldElement<F>;
+    type Output = FieldElement<L>;
 
-    fn add(self, rhs: FieldElement<F>) -> Self::Output {
+    fn add(self, rhs: FieldElement<L>) -> Self::Output {
         &self + &rhs
     }
 }
 
-impl<F> Add<&FieldElement<F>> for FieldElement<F>
+impl<F, L> Add<&FieldElement<L>> for FieldElement<F>
 where
-    F: IsField,
+    F: IsField + IsSubFieldOf<L>,
+    L: IsField,
 {
-    type Output = FieldElement<F>;
+    type Output = FieldElement<L>;
 
-    fn add(self, rhs: &FieldElement<F>) -> Self::Output {
+    fn add(self, rhs: &FieldElement<L>) -> Self::Output {
         &self + rhs
     }
 }
 
-impl<F> Add<FieldElement<F>> for &FieldElement<F>
+impl<F, L> Add<FieldElement<L>> for &FieldElement<F>
 where
-    F: IsField,
+    F: IsField + IsSubFieldOf<L>,
+    L: IsField,
 {
-    type Output = FieldElement<F>;
+    type Output = FieldElement<L>;
 
-    fn add(self, rhs: FieldElement<F>) -> Self::Output {
+    fn add(self, rhs: FieldElement<L>) -> Self::Output {
         self + &rhs
     }
 }
 
 /// AddAssign operator overloading for field elements
-impl<F> AddAssign<FieldElement<F>> for FieldElement<F>
+impl<F, L> AddAssign<FieldElement<F>> for FieldElement<L>
 where
-    F: IsField,
+    F: IsField + IsSubFieldOf<L>,
+    L: IsField,
 {
     fn add_assign(&mut self, rhs: FieldElement<F>) {
-        self.value = F::add(&self.value, &rhs.value);
+        self.value = <F as IsSubFieldOf<L>>::add(&rhs.value, &self.value);
     }
 }
 
@@ -186,142 +191,154 @@ where
 }
 
 /// Subtraction operator overloading for field elements*/
-impl<F> Sub<&FieldElement<F>> for &FieldElement<F>
+impl<F, L> Sub<&FieldElement<L>> for &FieldElement<F>
 where
-    F: IsField,
+    F: IsField + IsSubFieldOf<L>,
+    L: IsField,
 {
-    type Output = FieldElement<F>;
+    type Output = FieldElement<L>;
 
-    fn sub(self, rhs: &FieldElement<F>) -> Self::Output {
+    fn sub(self, rhs: &FieldElement<L>) -> Self::Output {
         Self::Output {
-            value: F::sub(&self.value, &rhs.value),
+            value: <F as IsSubFieldOf<L>>::sub(&self.value, &rhs.value),
         }
     }
 }
 
-impl<F> Sub<FieldElement<F>> for FieldElement<F>
+impl<F, L> Sub<FieldElement<L>> for FieldElement<F>
 where
-    F: IsField,
+    F: IsField + IsSubFieldOf<L>,
+    L: IsField,
 {
-    type Output = FieldElement<F>;
+    type Output = FieldElement<L>;
 
-    fn sub(self, rhs: FieldElement<F>) -> Self::Output {
+    fn sub(self, rhs: FieldElement<L>) -> Self::Output {
         &self - &rhs
     }
 }
 
-impl<F> Sub<&FieldElement<F>> for FieldElement<F>
+impl<F, L> Sub<&FieldElement<L>> for FieldElement<F>
 where
-    F: IsField,
+    F: IsField + IsSubFieldOf<L>,
+    L: IsField,
 {
-    type Output = FieldElement<F>;
+    type Output = FieldElement<L>;
 
-    fn sub(self, rhs: &FieldElement<F>) -> Self::Output {
+    fn sub(self, rhs: &FieldElement<L>) -> Self::Output {
         &self - rhs
     }
 }
 
-impl<F> Sub<FieldElement<F>> for &FieldElement<F>
+impl<F, L> Sub<FieldElement<L>> for &FieldElement<F>
 where
-    F: IsField,
+    F: IsField + IsSubFieldOf<L>,
+    L: IsField,
 {
-    type Output = FieldElement<F>;
+    type Output = FieldElement<L>;
 
-    fn sub(self, rhs: FieldElement<F>) -> Self::Output {
+    fn sub(self, rhs: FieldElement<L>) -> Self::Output {
         self - &rhs
     }
 }
 
 /// Multiplication operator overloading for field elements*/
-impl<F> Mul<&FieldElement<F>> for &FieldElement<F>
+impl<F, L> Mul<&FieldElement<L>> for &FieldElement<F>
 where
-    F: IsField,
+    F: IsField + IsSubFieldOf<L>,
+    L: IsField,
 {
-    type Output = FieldElement<F>;
+    type Output = FieldElement<L>;
 
-    fn mul(self, rhs: &FieldElement<F>) -> Self::Output {
+    fn mul(self, rhs: &FieldElement<L>) -> Self::Output {
         Self::Output {
-            value: F::mul(&self.value, &rhs.value),
+            value: <F as IsSubFieldOf<L>>::mul(&self.value, &rhs.value),
         }
     }
 }
 
-impl<F> Mul<FieldElement<F>> for FieldElement<F>
+impl<F, L> Mul<FieldElement<L>> for FieldElement<F>
 where
-    F: IsField,
+    F: IsField + IsSubFieldOf<L>,
+    L: IsField,
 {
-    type Output = FieldElement<F>;
+    type Output = FieldElement<L>;
 
-    fn mul(self, rhs: FieldElement<F>) -> Self::Output {
+    fn mul(self, rhs: FieldElement<L>) -> Self::Output {
         &self * &rhs
     }
 }
 
-impl<F> Mul<&FieldElement<F>> for FieldElement<F>
+impl<F, L> Mul<&FieldElement<L>> for FieldElement<F>
 where
-    F: IsField,
+    F: IsField + IsSubFieldOf<L>,
+    L: IsField,
 {
-    type Output = FieldElement<F>;
+    type Output = FieldElement<L>;
 
-    fn mul(self, rhs: &FieldElement<F>) -> Self::Output {
+    fn mul(self, rhs: &FieldElement<L>) -> Self::Output {
         &self * rhs
     }
 }
 
-impl<F> Mul<FieldElement<F>> for &FieldElement<F>
+impl<F, L> Mul<FieldElement<L>> for &FieldElement<F>
 where
-    F: IsField,
+    F: IsField + IsSubFieldOf<L>,
+    L: IsField,
 {
-    type Output = FieldElement<F>;
+    type Output = FieldElement<L>;
 
-    fn mul(self, rhs: FieldElement<F>) -> Self::Output {
+    fn mul(self, rhs: FieldElement<L>) -> Self::Output {
         self * &rhs
     }
 }
 
 /// Division operator overloading for field elements*/
-impl<F> Div<&FieldElement<F>> for &FieldElement<F>
+impl<F, L> Div<&FieldElement<L>> for &FieldElement<F>
 where
-    F: IsField,
+    F: IsField + IsSubFieldOf<L>,
+    L: IsField,
 {
-    type Output = FieldElement<F>;
+    type Output = FieldElement<L>;
 
-    fn div(self, rhs: &FieldElement<F>) -> Self::Output {
+    fn div(self, rhs: &FieldElement<L>) -> Self::Output {
         Self::Output {
-            value: F::div(&self.value, &rhs.value),
+            value: <F as IsSubFieldOf<L>>::div(&self.value, &rhs.value),
         }
     }
 }
 
-impl<F> Div<FieldElement<F>> for FieldElement<F>
+impl<F, L> Div<FieldElement<L>> for FieldElement<F>
 where
-    F: IsField,
+    F: IsField + IsSubFieldOf<L>,
+    L: IsField,
 {
-    type Output = FieldElement<F>;
+    type Output = FieldElement<L>;
 
-    fn div(self, rhs: FieldElement<F>) -> Self::Output {
+    fn div(self, rhs: FieldElement<L>) -> Self::Output {
         &self / &rhs
     }
 }
 
-impl<F> Div<&FieldElement<F>> for FieldElement<F>
+impl<F, L> Div<&FieldElement<L>> for FieldElement<F>
 where
-    F: IsField,
+    F: IsField + IsSubFieldOf<L>,
+    L: IsField,
 {
-    type Output = FieldElement<F>;
+    type Output = FieldElement<L>;
 
-    fn div(self, rhs: &FieldElement<F>) -> Self::Output {
+    fn div(self, rhs: &FieldElement<L>) -> Self::Output {
         &self / rhs
     }
 }
 
-impl<F> Div<FieldElement<F>> for &FieldElement<F>
+impl<F, L> Div<FieldElement<L>> for &FieldElement<F>
 where
-    F: IsField,
+    F: IsField + IsSubFieldOf<L>,
+    L: IsField,
 {
-    type Output = FieldElement<F>;
+    type Output = FieldElement<L>;
 
-    fn div(self, rhs: FieldElement<F>) -> Self::Output {
+    fn div(self, rhs: FieldElement<L>) -> Self::Output {
         self / &rhs
     }
 }
@@ -453,7 +470,7 @@ impl<F: IsPrimeField> FieldElement<F> {
 impl<F> Serialize for FieldElement<F>
 where
     F: IsField,
-    F::BaseType: ByteConversion
+    F::BaseType: ByteConversion,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -485,7 +502,7 @@ impl<F: IsPrimeField> Serialize for FieldElement<F> {
 impl<'de, F> Deserialize<'de> for FieldElement<F>
 where
     F: IsField,
-    F::BaseType: ByteConversion
+    F::BaseType: ByteConversion,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

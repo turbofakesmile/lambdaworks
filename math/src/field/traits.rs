@@ -14,6 +14,39 @@ pub enum RootsConfig {
     BitReverseInversed, // same as above but exponents are negated.
 }
 
+pub trait IsSubFieldOf<F: IsField>: IsField {
+    fn mul(a: &Self::BaseType, b: &F::BaseType) -> F::BaseType;
+    fn add(a: &Self::BaseType, b: &F::BaseType) -> F::BaseType;
+    fn div(a: &Self::BaseType, b: &F::BaseType) -> F::BaseType;
+    fn sub(a: &Self::BaseType, b: &F::BaseType) -> F::BaseType;
+    fn eq(a: &Self::BaseType, b: &F::BaseType) -> bool;
+}
+
+impl<F> IsSubFieldOf<F> for F
+where
+    F: IsField,
+{
+    fn mul(a: &Self::BaseType, b: &F::BaseType) -> F::BaseType {
+        F::mul(a, b)
+    }
+
+    fn add(a: &Self::BaseType, b: &F::BaseType) -> F::BaseType {
+        F::add(a, b)
+    }
+
+    fn sub(a: &Self::BaseType, b: &F::BaseType) -> Self::BaseType {
+        F::sub(a, b)
+    }
+
+    fn div(a: &Self::BaseType, b: &F::BaseType) -> F::BaseType {
+        F::div(a, b)
+    }
+
+    fn eq(a: &Self::BaseType, b: &F::BaseType) -> bool {
+        F::eq(a, b)
+    }
+}
+
 /// Trait to define necessary parameters for FFT-friendly Fields.
 /// Two-Adic fields are ones whose order is of the form  $2^n k + 1$.
 /// Here $n$ is usually called the *two-adicity* of the field. The
