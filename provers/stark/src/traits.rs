@@ -42,13 +42,22 @@ pub trait AIR {
 
     fn composition_poly_degree_bound(&self) -> usize;
 
-    fn compute_transition(
+    fn compute_transition<E: IsField>(
+        &self,
+        main_frame: &Frame<E>,
+        periodic_values: &[FieldElement<E>],
+        rap_challenges: &Self::RAPChallenges,
+    ) -> Vec<FieldElement<E>>
+    where
+        Self::Field: IsSubFieldOf<E>;
+
+    fn compute_transition_aux(
         &self,
         main_frame: &Frame<Self::Field>,
-        aux_frame: &Option<Frame<Self::FieldExtension>>,
+        aux_frame: &Frame<Self::FieldExtension>,
         periodic_values: &[FieldElement<Self::Field>],
         rap_challenges: &Self::RAPChallenges,
-    ) -> Vec<FieldElement<Self::Field>>;
+    ) -> Vec<FieldElement<Self::FieldExtension>>;
 
     fn boundary_constraints(
         &self,
