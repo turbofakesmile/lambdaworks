@@ -44,7 +44,8 @@ pub trait AIR {
 
     fn compute_transition(
         &self,
-        frame: &Frame<Self::Field>,
+        main_frame: &Frame<Self::Field>,
+        aux_frame: &Option<Frame<Self::FieldExtension>>,
         periodic_values: &[FieldElement<Self::Field>],
         rap_challenges: &Self::RAPChallenges,
     ) -> Vec<FieldElement<Self::Field>>;

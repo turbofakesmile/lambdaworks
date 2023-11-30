@@ -181,12 +181,22 @@ impl<F: IsFFTField + IsSubFieldOf<E>, E: IsField> ConstraintEvaluator<F, E> {
             .zip(&boundary_evaluation)
             .zip(zerofier_iter)
             .map(|((i, boundary), zerofier)| {
-                let frame = Frame::read_from_trace(
+                let main_frame = Frame::read_from_trace(
                     lde_trace,
                     i,
                     blowup_factor,
                     &air.context().transition_offsets,
                 );
+
+                let mut aux_frame = None;
+                if let Some(aux_trace) = lde_trace_aux {
+                    aux_frame = Some(Frame::read_from_trace(
+                        aux_trace,
+                        i,
+                        blowup_factor,
+                        &air.context().transition_offsets,
+                    ));
+                };
 
                 let periodic_values: Vec<_> = lde_periodic_columns
                     .iter()
@@ -196,7 +206,7 @@ impl<F: IsFFTField + IsSubFieldOf<E>, E: IsField> ConstraintEvaluator<F, E> {
                 // Compute all the transition constraints at this
                 // point of the LDE domain.
                 let evaluations_transition =
-                    air.compute_transition(&frame, &periodic_values, rap_challenges);
+                    air.compute_transition(&main_frame, &aux_frame, &periodic_values, rap_challenges);
 
                 #[cfg(all(debug_assertions, not(feature = "parallel")))]
                 transition_evaluations.push(evaluations_transition.clone());

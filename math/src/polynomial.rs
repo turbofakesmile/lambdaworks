@@ -136,13 +136,32 @@ impl<F: IsField> Polynomial<FieldElement<F>> {
     }
 
     /// Computes quotient with `x - b` in place.
-    pub fn ruffini_division<L: IsField>(mut self, b: &FieldElement<L>) -> FieldElement<L> where F: IsSubFieldOf<L> {
+    pub fn ruffini_division_inplace(&mut self, b: &FieldElement<F>) {
         let mut c = FieldElement::zero();
         for coeff in self.coefficients.iter_mut().rev() {
             *coeff = &*coeff + b * &c;
             core::mem::swap(coeff, &mut c);
         }
         self.coefficients.pop();
+    }
+
+    pub fn ruffini_division<L>(&self, b: &FieldElement<L>) -> Polynomial<FieldElement<L>>
+    where
+        L: IsField,
+        F: IsSubFieldOf<L>
+    {
+        if let Some(c) = self.coefficients.last() {
+            let mut c = c.clone().to_extension();
+            let mut coefficients = Vec::with_capacity(self.degree());
+            for coeff in self.coefficients.iter().rev().skip(1) {
+                coefficients.push(c.clone());
+                c = coeff + c * b;
+            }
+            Polynomial::new(&coefficients)
+        }
+        else {
+            Polynomial::zero()
+        }
     }
 
     /// Computes quotient and remainder of polynomial division.
@@ -1063,7 +1082,7 @@ mod tests {
     use proptest::prelude::*;
     proptest! {
         #[test]
-        fn ruffini_equals_division(p in any::<Vec<u64>>(), b in any::<u64>()) {
+        fn ruffini_inplace_equals_division(p in any::<Vec<u64>>(), b in any::<u64>()) {
             let p: Vec<_> = p.into_iter().map(FE::from).collect();
             let mut p = Polynomial::new(&p);
             let b = FE::from(b);
@@ -1073,6 +1092,19 @@ mod tests {
 
             p.ruffini_division_inplace(&b);
             prop_assert_eq!(p, p_ref / m);
+        }
+    }
+
+    use proptest::prelude::*;
+    proptest! {
+        #[test]
+        fn ruffini_inplace_equals_ruffini(p in any::<Vec<u64>>(), b in any::<u64>()) {
+            let p: Vec<_> = p.into_iter().map(FE::from).collect();
+            let mut p = Polynomial::new(&p);
+            let b = FE::from(b);
+            let q = p.ruffini_division(&b);
+            p.ruffini_division_inplace(&b);
+            prop_assert_eq!(q, p);
         }
     }
 }

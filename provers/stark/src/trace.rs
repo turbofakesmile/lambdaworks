@@ -209,10 +209,16 @@ pub fn get_trace_evaluations<F: IsFFTField + IsSubFieldOf<E>, E: IsField>(
         .iter()
         .map(|offset| primitive_root.pow(*offset) * x)
         .map(|eval_point| {
-            trace_polys
+            let mut main_evaluations = trace_polys
                 .iter()
                 .map(|poly| poly.evaluate(&eval_point))
-                .collect::<Vec<FieldElement<E>>>()
+                .collect::<Vec<FieldElement<E>>>();
+            let aux_evaluations = trace_polys_aux
+                .iter()
+                .map(|poly| poly.evaluate(&eval_point))
+                .collect::<Vec<FieldElement<E>>>();
+            main_evaluations.extend(aux_evaluations);
+            main_evaluations
         })
         .collect()
 }

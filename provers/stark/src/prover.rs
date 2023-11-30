@@ -80,14 +80,15 @@ pub struct Round3<F: IsField> {
     composition_poly_parts_ood_evaluation: Vec<FieldElement<F>>,
 }
 
-pub struct Round4<F: IsField> {
-    fri_last_value: FieldElement<F>,
+pub struct Round4<F: IsSubFieldOf<E>, E: IsField> {
+    fri_last_value: FieldElement<E>,
     fri_layers_merkle_roots: Vec<Commitment>,
-    deep_poly_openings: DeepPolynomialOpenings<F>,
-    deep_poly_openings_sym: DeepPolynomialOpenings<F>,
-    query_list: Vec<FriDecommitment<F>>,
+    deep_poly_openings: DeepPolynomialOpenings<F, E>,
+    deep_poly_openings_sym: DeepPolynomialOpenings<F, E>,
+    query_list: Vec<FriDecommitment<E>>,
     nonce: Option<u64>,
 }
+
 pub fn evaluate_polynomial_on_lde_domain<F, E>(
     p: &Polynomial<FieldElement<E>>,
     blowup_factor: usize,
@@ -388,10 +389,10 @@ pub trait IsStarkProver {
         domain: &Domain<Self::Field>,
         round_1_result: &Round1<Self::Field, Self::FieldExtension, A>,
         round_2_result: &Round2<Self::FieldExtension>,
-        round_3_result: &Round3<Self::Field>,
+        round_3_result: &Round3<Self::FieldExtension>,
         z: &FieldElement<Self::FieldExtension>,
         transcript: &mut impl IsStarkTranscript<Self::FieldExtension>,
-    ) -> Round4<Self::FieldExtension>
+    ) -> Round4<Self::Field, Self::FieldExtension>
     where
         FieldElement<Self::Field>: Serializable + Send + Sync,
         FieldElement<Self::FieldExtension>: Serializable + Send + Sync,
@@ -419,7 +420,7 @@ pub trait IsStarkProver {
         // Compute p₀ (deep composition polynomial)
         let deep_composition_poly = Self::compute_deep_composition_poly(
             air,
-            &round_1_result.trace_polys,
+            &round_1_result,
             round_2_result,
             round_3_result,
             z,
@@ -488,9 +489,9 @@ pub trait IsStarkProver {
     #[allow(clippy::too_many_arguments)]
     fn compute_deep_composition_poly<A>(
         air: &A,
-        trace_polys: &[Polynomial<FieldElement<Self::Field>>],
+        round_1_result: &Round1<Self::Field, Self::FieldExtension, A>,
         round_2_result: &Round2<Self::FieldExtension>,
-        round_3_result: &Round3<Self::Field>,
+        round_3_result: &Round3<Self::FieldExtension>,
         z: &FieldElement<Self::FieldExtension>,
         primitive_root: &FieldElement<Self::Field>,
         composition_poly_gammas: &[FieldElement<Self::FieldExtension>],
@@ -517,17 +518,17 @@ pub trait IsStarkProver {
 
         // Get trace evaluations needed for the trace terms of the deep composition polynomial
         let transition_offsets = &air.context().transition_offsets;
-        let trace_frame_evaluations = &round_3_result.trace_ood_evaluations;
+        let trace_frame_ood_evaluations = &round_3_result.trace_ood_evaluations;
 
         // Compute the sum of all the trace terms of the deep composition polynomial.
         // There is one term for every trace polynomial and for every row in the frame.
         // ∑ ⱼₖ [ 𝛾ₖ ( tⱼ − tⱼ(z) ) / ( X − zgᵏ )]
 
         // @@@ this could be const
-        let trace_frame_length = trace_frame_evaluations.len();
+        let trace_frame_length = trace_frame_ood_evaluations.len();
 
         #[cfg(feature = "parallel")]
-        let trace_terms = trace_polys
+        let trace_terms = round_1_result.trace_polys
             .par_iter()
             .enumerate()
             .fold(
@@ -546,32 +547,69 @@ pub trait IsStarkProver {
             )
             .reduce(|| Polynomial::zero(), |a, b| a + b);
 
-        #[cfg(not(feature = "parallel"))]
-        let trace_terms =
-            trace_polys
-                .iter()
-                .enumerate()
-                .fold(Polynomial::zero(), |trace_terms, (i, t_j)| {
-                    Self::compute_trace_term(
+        #[cfg(feature = "parallel")]
+        let trace_terms_aux = round_1_result.trace_polys_aux
+            .par_iter()
+            .enumerate()
+            .fold(
+                || Polynomial::zero(),
+                |trace_terms, (i, t_j)| {
+                    Self::compute_trace_term_aux(
                         &trace_terms,
-                        (i, t_j),
+                        (i + round_1_result.trace_polys.len(), t_j),
                         trace_frame_length,
                         trace_terms_gammas,
                         trace_frame_evaluations,
                         transition_offsets,
                         (z, primitive_root),
                     )
+                },
+            )
+            .reduce(|| Polynomial::zero(), |a, b| a + b);
+
+        #[cfg(not(feature = "parallel"))]
+        let trace_terms =
+            round_1_result.trace_polys
+                .iter()
+                .enumerate()
+                .fold(Polynomial::zero(), |trace_terms_accum, (i, t_j)| {
+                    Self::compute_trace_term(
+                        &trace_terms_accum,
+                        (i, t_j),
+                        trace_frame_length,
+                        trace_terms_gammas,
+                        trace_frame_ood_evaluations,
+                        transition_offsets,
+                        (z, primitive_root),
+                    )
                 });
 
-        h_terms + trace_terms
+        #[cfg(not(feature = "parallel"))]
+        let trace_terms_aux =
+            round_1_result.trace_polys_aux
+                .iter()
+                .enumerate()
+                .fold(Polynomial::zero(), |trace_terms, (i, t_j)| {
+                    Self::compute_trace_term_aux(
+                        &trace_terms,
+                        (i + round_1_result.trace_polys.len(), t_j),
+                        trace_frame_length,
+                        trace_terms_gammas,
+                        trace_frame_ood_evaluations,
+                        transition_offsets,
+                        (z, primitive_root),
+                    )
+                });
+
+        h_terms + trace_terms + trace_terms_aux
     }
 
     fn compute_trace_term(
-        trace_terms: &Polynomial<FieldElement<Self::FieldExtension>>,
+        trace_terms_accum: &Polynomial<FieldElement<Self::FieldExtension>>,
         (i, t_j): (usize, &Polynomial<FieldElement<Self::Field>>),
         trace_frame_length: usize,
         trace_terms_gammas: &[FieldElement<Self::FieldExtension>],
-        trace_frame_evaluations: &[Vec<FieldElement<Self::Field>>],
+        trace_frame_ood_evaluations: &[Vec<FieldElement<Self::FieldExtension>>],
         transition_offsets: &[usize],
         (z, primitive_root): (
             &FieldElement<Self::FieldExtension>,
@@ -585,7 +623,7 @@ pub trait IsStarkProver {
         let iter_trace_gammas = trace_terms_gammas
             .iter()
             .skip(i_times_trace_frame_evaluation);
-        let trace_int = trace_frame_evaluations
+        let trace_int = trace_frame_ood_evaluations
             .iter()
             .zip(transition_offsets)
             .zip(iter_trace_gammas)
@@ -596,22 +634,63 @@ pub trait IsStarkProver {
                     let t_j_z = &eval[i];
                     // @@@ this can be pre-computed
                     let z_shifted = primitive_root.pow(*offset) * z;
-                    let mut poly = (t_j - t_j_z);
-                    poly.ruffini_division_inplace(&z_shifted);
-                    trace_agg + poly * trace_gamma
+                    let mut poly = t_j.to_extension() - t_j_z;
+
+                    let q = poly.ruffini_division(&z_shifted);
+                    trace_agg + q * trace_gamma
                 },
             );
 
-        trace_terms + trace_int
+        trace_terms_accum + trace_int
+    }
+
+    fn compute_trace_term_aux(
+        trace_terms_accum: &Polynomial<FieldElement<Self::FieldExtension>>,
+        (i, t_j): (usize, &Polynomial<FieldElement<Self::FieldExtension>>),
+        trace_frame_length: usize,
+        trace_terms_gammas: &[FieldElement<Self::FieldExtension>],
+        trace_frame_ood_evaluations: &[Vec<FieldElement<Self::FieldExtension>>],
+        transition_offsets: &[usize],
+        (z, primitive_root): (
+            &FieldElement<Self::FieldExtension>,
+            &FieldElement<Self::Field>,
+        ),
+    ) -> Polynomial<FieldElement<Self::FieldExtension>>
+    where
+        FieldElement<Self::Field>: Serializable + Send + Sync,
+    {
+        let i_times_trace_frame_evaluation = i * trace_frame_length;
+        let iter_trace_gammas = trace_terms_gammas
+            .iter()
+            .skip(i_times_trace_frame_evaluation);
+        let trace_int = trace_frame_ood_evaluations
+            .iter()
+            .zip(transition_offsets)
+            .zip(iter_trace_gammas)
+            .fold(
+                Polynomial::zero(),
+                |trace_agg, ((eval, offset), trace_gamma)| {
+                    // @@@ we can avoid this clone
+                    let t_j_z = &eval[i];
+                    // @@@ this can be pre-computed
+                    let z_shifted = primitive_root.pow(*offset) * z;
+                    let mut poly = t_j.to_extension() - t_j_z;
+
+                    let q = poly.ruffini_division(&z_shifted);
+                    trace_agg + q * trace_gamma
+                },
+            );
+
+        trace_terms_accum + trace_int
     }
 
     fn open_composition_poly(
-        composition_poly_merkle_tree: &BatchedMerkleTree<Self::Field>,
-        lde_composition_poly_evaluations: &[Vec<FieldElement<Self::Field>>],
+        composition_poly_merkle_tree: &BatchedMerkleTree<Self::FieldExtension>,
+        lde_composition_poly_evaluations: &[Vec<FieldElement<Self::FieldExtension>>],
         index: usize,
-    ) -> (Proof<Commitment>, Vec<FieldElement<Self::Field>>)
+    ) -> (Proof<Commitment>, Vec<FieldElement<Self::FieldExtension>>)
     where
-        FieldElement<Self::Field>: Serializable,
+        FieldElement<Self::FieldExtension>: Serializable,
     {
         let proof = composition_poly_merkle_tree
             .get_proof_by_pos(index)
@@ -630,31 +709,36 @@ pub trait IsStarkProver {
         (proof, lde_composition_poly_parts_evaluation)
     }
 
-    fn open_trace_polys(
+    fn open_trace_polys<A>(
         domain: &Domain<Self::Field>,
-        lde_trace_merkle_trees: &[BatchedMerkleTree<Self::Field>],
-        lde_trace: &TraceTable<Self::Field>,
+        round_1: &Round1<Self::Field, Self::FieldExtension, A>,
         index: usize,
-    ) -> (Vec<Proof<Commitment>>, Vec<FieldElement<Self::Field>>)
+    ) -> (Vec<Proof<Commitment>>, Vec<FieldElement<Self::Field>>,  Vec<FieldElement<Self::FieldExtension>>)
     where
+        A: AIR<Field = Self::Field, FieldExtension = Self::FieldExtension>,
         FieldElement<Self::Field>: Serializable,
+        FieldElement<Self::FieldExtension>: Serializable,
     {
         let domain_size = domain.lde_roots_of_unity_coset.len();
-        let lde_trace_evaluations = lde_trace
+
+        // Main trace polynomial openings
+        let lde_trace_evaluations = round_1.lde_trace
             .get_row(reverse_index(index, domain_size as u64))
             .to_vec();
+        let main_opening = round_1.lde_trace_merkle_tree.get_proof_by_pos(index).unwrap();
+        let mut lde_trace_merkle_proofs = vec![main_opening];
 
-        // Trace polynomials openings
-        #[cfg(feature = "parallel")]
-        let merkle_trees_iter = lde_trace_merkle_trees.par_iter();
-        #[cfg(not(feature = "parallel"))]
-        let merkle_trees_iter = lde_trace_merkle_trees.iter();
-
-        let lde_trace_merkle_proofs: Vec<Proof<[u8; 32]>> = merkle_trees_iter
-            .map(|tree| tree.get_proof_by_pos(index).unwrap())
-            .collect();
-
-        (lde_trace_merkle_proofs, lde_trace_evaluations)
+        // Auxiliary trace polynomial openings
+        let mut lde_trace_aux_evaluations = Vec::new();
+        if let Some(lde_trace_aux) = round_1.lde_trace_aux {
+            lde_trace_aux_evaluations = lde_trace_aux
+                .get_row(reverse_index(index, domain_size as u64))
+                .to_vec();
+            let aux_opening = round_1.lde_trace_merkle_tree_aux.unwrap().get_proof_by_pos(index).unwrap();
+            lde_trace_merkle_proofs.push(aux_opening);
+        }
+        
+        (lde_trace_merkle_proofs, lde_trace_evaluations, lde_trace_aux_evaluations)
     }
 
     /// Open the deep composition polynomial on a list of indexes
@@ -667,8 +751,8 @@ pub trait IsStarkProver {
         round_2_result: &Round2<Self::FieldExtension>,
         indexes_to_open: &[usize],
     ) -> (
-        DeepPolynomialOpenings<Self::FieldExtension>,
-        DeepPolynomialOpenings<Self::FieldExtension>,
+        DeepPolynomialOpenings<Self::Field, Self::FieldExtension>,
+        DeepPolynomialOpenings<Self::Field, Self::FieldExtension>,
     )
     where
         FieldElement<Self::Field>: Serializable,
@@ -678,17 +762,15 @@ pub trait IsStarkProver {
         let mut openings_symmetric = Vec::new();
 
         for index in indexes_to_open.iter() {
-            let (lde_trace_merkle_proofs, lde_trace_evaluations) = Self::open_trace_polys(
+            let (lde_trace_merkle_proofs, lde_trace_evaluations, lde_trace_aux_evaluations) = Self::open_trace_polys(
                 domain,
-                &round_1_result.lde_trace_merkle_trees,
-                &round_1_result.lde_trace,
+                &round_1_result,
                 index * 2,
             );
 
-            let (lde_trace_sym_merkle_proofs, lde_trace_sym_evaluations) = Self::open_trace_polys(
+            let (lde_trace_sym_merkle_proofs, lde_trace_sym_evaluations, lde_trace_aux_sym_evaluations) = Self::open_trace_polys(
                 domain,
-                &round_1_result.lde_trace_merkle_trees,
-                &round_1_result.lde_trace,
+                &round_1_result,
                 index * 2 + 1,
             );
 
@@ -699,7 +781,7 @@ pub trait IsStarkProver {
                     *index,
                 );
 
-            openings.push(DeepPolynomialOpening {
+            openings.push(DeepPolynomialOpening{
                 lde_composition_poly_proof: lde_composition_poly_proof.clone(),
                 lde_composition_poly_parts_evaluation: lde_composition_poly_parts_evaluation
                     .clone()
@@ -708,6 +790,7 @@ pub trait IsStarkProver {
                     .collect(),
                 lde_trace_merkle_proofs,
                 lde_trace_evaluations,
+                lde_trace_aux_evaluations
             });
 
             openings_symmetric.push(DeepPolynomialOpening {
@@ -719,6 +802,7 @@ pub trait IsStarkProver {
                     .collect(),
                 lde_trace_merkle_proofs: lde_trace_sym_merkle_proofs,
                 lde_trace_evaluations: lde_trace_sym_evaluations,
+                lde_trace_aux_evaluations: lde_trace_aux_sym_evaluations,
             });
         }
 
@@ -731,11 +815,12 @@ pub trait IsStarkProver {
         pub_inputs: &A::PublicInputs,
         proof_options: &ProofOptions,
         mut transcript: impl IsStarkTranscript<Self::FieldExtension>,
-    ) -> Result<StarkProof<Self::Field>, ProvingError>
+    ) -> Result<StarkProof<Self::Field, Self::FieldExtension>, ProvingError>
     where
         A: AIR<Field = Self::Field, FieldExtension = Self::FieldExtension> + Send + Sync,
         A::RAPChallenges: Send + Sync,
         FieldElement<Self::Field>: Serializable + Send + Sync,
+        FieldElement<Self::FieldExtension>: Serializable + Send + Sync,
     {
         info!("Started proof generation...");
         #[cfg(feature = "instruments")]
@@ -835,8 +920,8 @@ pub trait IsStarkProver {
 
         // <<<< Receive challenge: z
         let z = transcript.sample_z_ood(
-            &domain.lde_roots_of_unity_coset,
-            &domain.trace_roots_of_unity,
+            &domain.lde_roots_of_unity_coset.iter().map(|fe| fe.to_extension::<Self::FieldExtension>()).collect::<Vec<_>>(),
+            &domain.trace_roots_of_unity.iter().map(|fe| fe.to_extension::<Self::FieldExtension>()).collect::<Vec<_>>(),
         );
 
         let round_3_result = Self::round_3_evaluate_polynomials_in_out_of_domain_element(
@@ -1067,7 +1152,7 @@ mod tests {
     }
 
     fn proof_parts_stone_compatibility_case_1() -> (
-        StarkProof<Stark252PrimeField>,
+        StarkProof<Stark252PrimeField, Stark252PrimeField>,
         fibonacci_2_cols_shifted::PublicInputs<Stark252PrimeField>,
         ProofOptions,
         [u8; 4],
@@ -1099,7 +1184,7 @@ mod tests {
         (proof, pub_inputs, proof_options, transcript_init_seed)
     }
 
-    fn stone_compatibility_case_1_proof() -> StarkProof<Stark252PrimeField> {
+    fn stone_compatibility_case_1_proof() -> StarkProof<Stark252PrimeField, Stark252PrimeField> {
         let (proof, _, _, _) = proof_parts_stone_compatibility_case_1();
         proof
     }
@@ -1448,7 +1533,7 @@ mod tests {
     }
 
     fn proof_parts_stone_compatibility_case_2() -> (
-        StarkProof<Stark252PrimeField>,
+        StarkProof<Stark252PrimeField, Stark252PrimeField>,
         fibonacci_2_cols_shifted::PublicInputs<Stark252PrimeField>,
         ProofOptions,
         [u8; 4],
@@ -1480,7 +1565,7 @@ mod tests {
         (proof, pub_inputs, proof_options, transcript_init_seed)
     }
 
-    fn stone_compatibility_case_2_proof() -> StarkProof<Stark252PrimeField> {
+    fn stone_compatibility_case_2_proof() -> StarkProof<Stark252PrimeField, Stark252PrimeField> {
         let (proof, _, _, _) = proof_parts_stone_compatibility_case_2();
         proof
     }
