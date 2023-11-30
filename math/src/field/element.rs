@@ -435,6 +435,16 @@ where
     pub fn zero() -> Self {
         Self { value: F::zero() }
     }
+
+    #[inline(always)]
+    pub fn to_extension<L: IsField>(self) -> FieldElement<L>
+    where
+        F: IsSubFieldOf<L>,
+    {
+        FieldElement {
+            value: <F as IsSubFieldOf<L>>::embed(self.value),
+        }
+    }
 }
 
 impl<F: IsPrimeField> FieldElement<F> {

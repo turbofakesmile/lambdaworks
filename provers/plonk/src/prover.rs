@@ -2,6 +2,7 @@ use lambdaworks_crypto::fiat_shamir::transcript::Transcript;
 use lambdaworks_math::errors::DeserializationError;
 use lambdaworks_math::fft::polynomial::FFTPoly;
 use lambdaworks_math::field::traits::IsFFTField;
+use lambdaworks_math::polynomial::pad_with_zero_coefficients_to_length;
 use lambdaworks_math::traits::{Deserializable, IsRandomFieldElementGenerator, Serializable};
 use std::marker::PhantomData;
 use std::mem::size_of;
@@ -318,8 +319,7 @@ where
         let p_c = <Polynomial<FieldElement<F>> as FFTPoly<F, F>>::interpolate_fft(&witness.c)
             .expect("xs and ys have equal length and xs are unique");
 
-        let z_h = Polynomial::new_monomial(FieldElement::one(), common_preprocessed_input.n)
-            - FieldElement::one();
+        let z_h = Polynomial::new_monomial(FieldElement::one(), common_preprocessed_input.n) - FieldElement::<F>::one();
         let p_a = self.blind_polynomial(&p_a, &z_h, 2);
         let p_b = self.blind_polynomial(&p_b, &z_h, 2);
         let p_c = self.blind_polynomial(&p_c, &z_h, 2);
@@ -366,8 +366,7 @@ where
 
         let p_z = <Polynomial<FieldElement<F>> as FFTPoly<F, F>>::interpolate_fft(&coefficients)
             .expect("xs and ys have equal length and xs are unique");
-        let z_h = Polynomial::new_monomial(FieldElement::one(), common_preprocessed_input.n)
-            - FieldElement::one();
+        let z_h = Polynomial::new_monomial(FieldElement::one(), common_preprocessed_input.n) - FieldElement::<F>::one();
         let p_z = self.blind_polynomial(&p_z, &z_h, 3);
         let z_1 = self.commitment_scheme.commit(&p_z);
         Round2Result {
@@ -393,7 +392,7 @@ where
 
         let one = Polynomial::new_monomial(FieldElement::one(), 0);
         let p_x = &Polynomial::new_monomial(FieldElement::one(), 1);
-        let zh = Polynomial::new_monomial(FieldElement::one(), cpi.n) - &one;
+        let zh = Polynomial::new_monomial(FieldElement::<F>::one(), cpi.n) - &one;
 
         let z_x_omega_coefficients: Vec<FieldElement<F>> = p_z
             .coefficients()
@@ -505,7 +504,7 @@ where
             .collect();
         let mut t = Polynomial::interpolate_offset_fft(&c, offset).unwrap();
 
-        Polynomial::pad_with_zero_coefficients_to_length(&mut t, 3 * (&cpi.n + 2));
+        pad_with_zero_coefficients_to_length(&mut t, 3 * (&cpi.n + 2));
         let p_t_lo = Polynomial::new(&t.coefficients[..&cpi.n + 2]);
         let p_t_mid = Polynomial::new(&t.coefficients[&cpi.n + 2..2 * (&cpi.n + 2)]);
         let p_t_hi = Polynomial::new(&t.coefficients[2 * (&cpi.n + 2)..3 * (&cpi.n + 2)]);

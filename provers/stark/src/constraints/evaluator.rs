@@ -115,13 +115,12 @@ impl<F: IsFFTField + IsSubFieldOf<E>, E: IsField> ConstraintEvaluator<F, E> {
                 (0..number_of_b_constraints)
                     .zip(boundary_coefficients)
                     .fold(FieldElement::zero(), |acc, (constraint_index, beta)| {
-                        acc + &boundary_zerofiers_inverse_evaluations[constraint_index]
-                            [domain_index]
-                            * beta
+                        acc + &boundary_zerofiers_inverse_evaluations[constraint_index][domain_index]
                             * &boundary_polys_evaluations[constraint_index][domain_index]
+                            * beta
                     })
             })
-            .collect::<Vec<FieldElement<F>>>();
+            .collect::<Vec<FieldElement<E>>>();
 
         #[cfg(all(debug_assertions, not(feature = "parallel")))]
         let boundary_zerofiers = Vec::new();
@@ -216,14 +215,14 @@ impl<F: IsFFTField + IsSubFieldOf<E>, E: IsField> ConstraintEvaluator<F, E> {
                         // If there's no exemption, then
                         // the zerofier remains as it was.
                         if *exemption == 0 {
-                            acc + zerofier * beta * eval
+                            acc + zerofier * eval * beta 
                         } else {
                             //TODO: change how exemptions are indexed!
                             if num_exemptions == 1 {
                                 acc + zerofier
-                                    * beta
                                     * eval
                                     * &transition_exemptions_evaluations[0][i]
+                                    * beta
                             } else {
                                 // This case is not used for Cairo Programs, it can be improved in the future
                                 let vector = air
@@ -240,9 +239,9 @@ impl<F: IsFFTField + IsSubFieldOf<E>, E: IsField> ConstraintEvaluator<F, E> {
                                     .expect("is there");
 
                                 acc + zerofier
-                                    * beta
                                     * eval
                                     * &transition_exemptions_evaluations[index][i]
+                                    * beta
                             }
                         }
                     });
@@ -250,7 +249,7 @@ impl<F: IsFFTField + IsSubFieldOf<E>, E: IsField> ConstraintEvaluator<F, E> {
 
                 acc_transition + boundary
             })
-            .collect::<Vec<FieldElement<F>>>();
+            .collect::<Vec<FieldElement<E>>>();
 
         evaluations_t
     }

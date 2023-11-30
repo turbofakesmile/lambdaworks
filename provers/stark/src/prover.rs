@@ -111,9 +111,7 @@ pub trait IsStarkProver {
     type Field: IsFFTField + IsSubFieldOf<Self::FieldExtension>;
     type FieldExtension: IsField;
 
-    fn batch_commit<F>(
-        vectors: &[Vec<FieldElement<F>>],
-    ) -> (BatchedMerkleTree<F>, Commitment)
+    fn batch_commit<F>(vectors: &[Vec<FieldElement<F>>]) -> (BatchedMerkleTree<F>, Commitment)
     where
         F: IsField,
         FieldElement<F>: Serializable,
@@ -174,7 +172,7 @@ pub trait IsStarkProver {
     where
         FieldElement<Self::Field>: Send + Sync,
         E: IsField,
-        Self::Field: IsSubFieldOf<E>
+        Self::Field: IsSubFieldOf<E>,
     {
         #[cfg(not(feature = "parallel"))]
         let trace_polys_iter = trace_polys.iter();
@@ -206,7 +204,12 @@ pub trait IsStarkProver {
         FieldElement<Self::Field>: Serializable + Send + Sync,
     {
         let (mut trace_polys, evaluations, lde_trace_merkle_tree, main_merkle_root) =
-            Self::interpolate_and_commit::<Self::Field>(main_trace, domain, A::STEP_SIZE, transcript);
+            Self::interpolate_and_commit::<Self::Field>(
+                main_trace,
+                domain,
+                A::STEP_SIZE,
+                transcript,
+            );
         let lde_trace = TraceTable::from_columns(evaluations, A::STEP_SIZE);
 
         let rap_challenges = air.build_rap_challenges(transcript);
@@ -221,7 +224,12 @@ pub trait IsStarkProver {
         if !aux_trace.is_empty() {
             // Check that this is valid for interpolation
             let (polys, aux_trace_polys_evaluations, merkle_tree, aux_merkle_root) =
-                Self::interpolate_and_commit::<Self::FieldExtension>(&aux_trace, domain, A::STEP_SIZE, transcript);
+                Self::interpolate_and_commit::<Self::FieldExtension>(
+                    &aux_trace,
+                    domain,
+                    A::STEP_SIZE,
+                    transcript,
+                );
             trace_polys_aux.extend(polys);
             lde_trace_merkle_tree_aux = Some(merkle_tree);
             lde_trace_aux = Some(TraceTable::from_columns(
@@ -381,7 +389,7 @@ pub trait IsStarkProver {
         round_1_result: &Round1<Self::Field, Self::FieldExtension, A>,
         round_2_result: &Round2<Self::FieldExtension>,
         round_3_result: &Round3<Self::Field>,
-        z: &FieldElement<Self::Field>,
+        z: &FieldElement<Self::FieldExtension>,
         transcript: &mut impl IsStarkTranscript<Self::FieldExtension>,
     ) -> Round4<Self::FieldExtension>
     where
@@ -483,7 +491,7 @@ pub trait IsStarkProver {
         trace_polys: &[Polynomial<FieldElement<Self::Field>>],
         round_2_result: &Round2<Self::FieldExtension>,
         round_3_result: &Round3<Self::Field>,
-        z: &FieldElement<Self::Field>,
+        z: &FieldElement<Self::FieldExtension>,
         primitive_root: &FieldElement<Self::Field>,
         composition_poly_gammas: &[FieldElement<Self::FieldExtension>],
         trace_terms_gammas: &[FieldElement<Self::FieldExtension>],
@@ -559,14 +567,17 @@ pub trait IsStarkProver {
     }
 
     fn compute_trace_term(
-        trace_terms: &Polynomial<FieldElement<Self::Field>>,
+        trace_terms: &Polynomial<FieldElement<Self::FieldExtension>>,
         (i, t_j): (usize, &Polynomial<FieldElement<Self::Field>>),
         trace_frame_length: usize,
         trace_terms_gammas: &[FieldElement<Self::FieldExtension>],
         trace_frame_evaluations: &[Vec<FieldElement<Self::Field>>],
         transition_offsets: &[usize],
-        (z, primitive_root): (&FieldElement<Self::Field>, &FieldElement<Self::Field>),
-    ) -> Polynomial<FieldElement<Self::Field>>
+        (z, primitive_root): (
+            &FieldElement<Self::FieldExtension>,
+            &FieldElement<Self::Field>,
+        ),
+    ) -> Polynomial<FieldElement<Self::FieldExtension>>
     where
         FieldElement<Self::Field>: Serializable + Send + Sync,
     {
@@ -584,8 +595,8 @@ pub trait IsStarkProver {
                     // @@@ we can avoid this clone
                     let t_j_z = &eval[i];
                     // @@@ this can be pre-computed
-                    let z_shifted = z * primitive_root.pow(*offset);
-                    let mut poly = t_j - t_j_z;
+                    let z_shifted = primitive_root.pow(*offset) * z;
+                    let mut poly = (t_j - t_j_z);
                     poly.ruffini_division_inplace(&z_shifted);
                     trace_agg + poly * trace_gamma
                 },
