@@ -195,6 +195,8 @@ impl<F: IsField + IsFFTField, CS: IsCommitmentScheme<F>> Verifier<F, CS> {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Write;
+
     use lambdaworks_math::traits::Deserializable;
 
     use super::*;
@@ -235,6 +237,10 @@ mod tests {
             &common_preprocessed_input,
             &verifying_key,
         );
+
+        let mut proof_file =
+            std::fs::File::create("plonk_simple_mul.proof").expect("Could not create proof file");
+        proof_file.write_all(&proof.as_bytes()).unwrap();
 
         let verifier = Verifier::new(kzg);
         assert!(verifier.verify(

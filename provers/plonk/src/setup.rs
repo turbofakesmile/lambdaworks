@@ -6,10 +6,12 @@ use lambdaworks_crypto::commitments::traits::IsCommitmentScheme;
 use lambdaworks_crypto::fiat_shamir::{
     default_transcript::DefaultTranscript, is_transcript::IsTranscript,
 };
+use lambdaworks_math::errors::DeserializationError;
 use lambdaworks_math::field::traits::IsFFTField;
 use lambdaworks_math::field::{element::FieldElement, traits::IsField};
 use lambdaworks_math::polynomial::Polynomial;
-use lambdaworks_math::traits::{AsBytes, ByteConversion};
+use lambdaworks_math::traits::{AsBytes, ByteConversion, Deserializable};
+use serde::{Deserialize, Serialize};
 
 // TODO: implement getters
 pub struct Witness<F: IsField> {
@@ -111,6 +113,59 @@ pub struct VerificationKey<G1Point> {
     pub s1_1: G1Point,
     pub s2_1: G1Point,
     pub s3_1: G1Point,
+}
+
+// #[cfg(feature = "alloc")]
+impl<B> AsBytes for VerificationKey<B>
+where
+    B: AsBytes,
+{
+    fn as_bytes(&self) -> Vec<u8> {
+        let mut bytes: Vec<u8> = Vec::new();
+        bytes.extend_from_slice(&self.qm_1.as_bytes());
+        bytes.extend_from_slice(&self.ql_1.as_bytes());
+        bytes.extend_from_slice(&self.qr_1.as_bytes());
+        bytes.extend_from_slice(&self.qo_1.as_bytes());
+        bytes.extend_from_slice(&self.qc_1.as_bytes());
+        bytes.extend_from_slice(&self.s1_1.as_bytes());
+        bytes.extend_from_slice(&self.s2_1.as_bytes());
+        bytes.extend_from_slice(&self.s3_1.as_bytes());
+        bytes
+    }
+}
+
+impl<B> Deserializable for VerificationKey<B>
+where
+    B: Deserializable,
+{
+    fn deserialize(bytes: &[u8]) -> Result<Self, DeserializationError> {
+        if bytes.len() % 8 != 0 {
+            return Err(DeserializationError::InvalidAmountOfBytes);
+        }
+
+        let len = bytes.len() / 8;
+        let qm_1 = B::deserialize(&bytes[..len])?;
+        let ql_1 = B::deserialize(&bytes[len..len * 2])?;
+        let qr_1 = B::deserialize(&bytes[len * 2..len * 3])?;
+        let qo_1 = B::deserialize(&bytes[len * 3..len * 4])?;
+        let qc_1 = B::deserialize(&bytes[len * 4..len * 5])?;
+        let s1_1 = B::deserialize(&bytes[len * 5..len * 6])?;
+        let s2_1 = B::deserialize(&bytes[len * 6..len * 7])?;
+        let s3_1 = B::deserialize(&bytes[len * 7..])?;
+
+        let vk = VerificationKey {
+            qm_1,
+            ql_1,
+            qr_1,
+            qo_1,
+            qc_1,
+            s1_1,
+            s2_1,
+            s3_1,
+        };
+
+        Ok(vk)
+    }
 }
 
 pub fn setup<F: IsField, CS: IsCommitmentScheme<F>>(
