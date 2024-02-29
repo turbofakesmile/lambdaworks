@@ -11,7 +11,6 @@ use lambdaworks_math::field::traits::IsFFTField;
 use lambdaworks_math::field::{element::FieldElement, traits::IsField};
 use lambdaworks_math::polynomial::Polynomial;
 use lambdaworks_math::traits::{AsBytes, ByteConversion, Deserializable};
-use serde::{Deserialize, Serialize};
 
 // TODO: implement getters
 pub struct Witness<F: IsField> {
@@ -103,6 +102,7 @@ impl<F: IsFFTField> CommonPreprocessedInput<F> {
     }
 }
 
+#[derive(PartialEq, Eq, Debug)]
 pub struct VerificationKey<G1Point> {
     pub qm_1: G1Point,
     pub ql_1: G1Point,
@@ -216,6 +216,7 @@ where
 #[cfg(test)]
 mod tests {
     use lambdaworks_math::elliptic_curve::short_weierstrass::curves::bls12_381::default_types::FrField;
+    use lambdaworks_math::elliptic_curve::short_weierstrass::point::ShortWeierstrassProjectivePoint;
     use lambdaworks_math::elliptic_curve::{
         short_weierstrass::curves::bls12_381::curve::BLS12381Curve, traits::IsEllipticCurve,
     };
@@ -270,5 +271,19 @@ mod tests {
         assert_eq!(vk.s1_1, expected_s1);
         assert_eq!(vk.s2_1, expected_s2);
         assert_eq!(vk.s3_1, expected_s3);
+    }
+
+    #[test]
+    fn verification_key_serialization_works() {
+        let common_preprocessed_input = test_common_preprocessed_input_1();
+        let srs = test_srs(common_preprocessed_input.n);
+        let kzg = KZG::new(srs);
+        let vk = setup(&common_preprocessed_input, &kzg);
+
+        let vk_bytes = vk.as_bytes();
+        let vk_deserialized: VerificationKey<ShortWeierstrassProjectivePoint<BLS12381Curve>> =
+            VerificationKey::deserialize(&vk_bytes).unwrap();
+
+        assert_eq!(vk, vk_deserialized);
     }
 }
