@@ -1,16 +1,10 @@
-use std::mem::size_of;
-
 use crate::{
     common::*,
     serialization::{deserialize_value, serialize_value},
     setup::ProvingKey,
     ssp::SquareSpanProgram,
 };
-use lambdaworks_math::{
-    errors::DeserializationError,
-    msm::pippenger::msm,
-    traits::{AsBytes, Deserializable},
-};
+use lambdaworks_math::{errors::DeserializationError, msm::pippenger::msm};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Proof {

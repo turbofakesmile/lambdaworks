@@ -1,11 +1,8 @@
-use std::mem::size_of;
-
 use lambdaworks_math::{
     cyclic_group::IsGroup,
     elliptic_curve::traits::{IsEllipticCurve, IsPairing},
     errors::DeserializationError,
     field::traits::IsField,
-    traits::{AsBytes, ByteConversion, Deserializable},
 };
 
 use crate::{

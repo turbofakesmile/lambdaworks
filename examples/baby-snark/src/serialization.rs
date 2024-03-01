@@ -75,7 +75,7 @@ pub fn deserialize_vec<T: Deserializable>(
 
     let mut values = Vec::new();
 
-    for i in 0..length {
+    for _ in 0..length {
         let (value, read) = deserialize_value(&bytes[offset..])?;
         offset += read;
 
