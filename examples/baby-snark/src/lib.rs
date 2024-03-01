@@ -3,6 +3,7 @@ pub mod scs;
 pub mod ssp;
 
 mod prover;
+mod serialization;
 mod setup;
 mod verifier;
 
