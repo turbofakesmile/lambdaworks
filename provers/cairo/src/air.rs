@@ -918,6 +918,39 @@ pub fn verify_cairo_proof(
     )
 }
 
+pub fn verify_cairo_proof_ffi(proof_bytes: &[u8], proof_options: &ProofOptions) -> bool {
+    let bytes = proof_bytes;
+
+    // This logic is the same as main verify, with only error handling changing. In ffi, we simply return a false if the proof is invalid, instead of rising an error.
+
+    // Proof len was stored as an u32, 4u8 needs to be read
+    let proof_len = u32::from_le_bytes(bytes[0..4].try_into().unwrap()) as usize;
+
+    let bytes = &bytes[4..];
+    if bytes.len() < proof_len {
+        return false;
+    }
+
+    let Ok((proof, _)) =
+        bincode::serde::decode_from_slice(&bytes[0..proof_len], bincode::config::standard())
+    else {
+        return false;
+    };
+    let bytes = &bytes[proof_len..];
+
+    let Ok((pub_inputs, _)) = bincode::serde::decode_from_slice(bytes, bincode::config::standard())
+    else {
+        return false;
+    };
+
+    Verifier::<CairoAIR>::verify(
+        &proof,
+        &pub_inputs,
+        proof_options,
+        StoneProverTranscript::new(&[]),
+    )
+}
+
 #[cfg(test)]
 #[cfg(debug_assertions)]
 mod test {
