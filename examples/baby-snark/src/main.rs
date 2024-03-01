@@ -1,9 +1,11 @@
+use std::fmt::format;
 use std::fs::File;
 use std::{io, ops::Neg};
+use std::io::{Read, Write};
 
-use baby_snark::ProvingKey;
+use baby_snark::{ProvingKey, VerifyingKey};
 use baby_snark::{
-    common::FrElement, scs::SquareConstraintSystem, setup, ssp::SquareSpanProgram, verify, Prover,
+    common::FrElement, scs::SquareConstraintSystem, setup, ssp::SquareSpanProgram, verify, Prover, Proof,
 };
 use serde::{Deserialize, Serialize};
 
@@ -37,7 +39,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let program = File::open(args.matrix).unwrap();
+    let program = File::open(args.matrix.clone()).unwrap();
     let reader = io::BufReader::new(program);
 
     let sol: Solution = serde_json::from_reader(reader).unwrap();
@@ -52,24 +54,46 @@ fn main() {
     match args {
         Args { setup: true, .. } => {
             let (proving_key, verifying_key) = setup(&ssp);
-            todo!("serealize ssp, pk, vk");
+            
+            //TODO! serialize pk, vk
+
+            //let filename = args.matrix.split('.').next().unwrap();
+            //let mut data_file = File::create(format!("{}.pk", filename)).expect("pk file creation failed");
+            //data_file.write(&proving_key.serialize()).expect("pk write failed");
+            //data_file.close()
+            //data_file = File::create(format!("{}.vk", filename)).expect("vk file creation failed");
+            //data_file.write(&verifying_key.serialize()).expect("vk write failed");
         }
         Args { prover: true, .. } => {
-            let pk = File::open(args.proving_file).unwrap();
-            let reader = io::BufReader::new(pk);
+            let mut pk_file = File::open(args.proving_file).unwrap();
+
+            let mut pk = Vec::new();
+            pk_file.read_to_end(&mut pk).unwrap();
+            
+            //let verifying_key = VerifyingKey::deserialize(&vk).unwrap();
+
+            //TODO! serialize proof
 
             //let proof = Prover::prove(&input, &ssp, &proving_key);
-            todo!("deserealize proving_key and serealize proof");
+            //let filename = args.matrix.split('.').next().unwrap();
+            //let mut data_file = File::create(format!("{}.proof", filename)).expect("creation failed");
+            //data_file.write(&proof.serialize).expect("write failed");
+        
+            todo!("deserealize proving_key");
         }
         Args { verifier: true, .. } => {
-            let proof = File::open(args.proof).unwrap();
-            let reader_proof = io::BufReader::new(proof);
+            let mut proof_file = File::open(args.proof).unwrap();
+            let mut vk_file = File::open(args.verifying_file).unwrap();
 
-            let vk = File::open(args.verifying_file).unwrap();
-            let reader_vk = io::BufReader::new(vk);
+            let mut proof = Vec::new();
+            proof_file.read_to_end(&mut proof).unwrap();
+            let proof = Proof::deserialize(&proof).unwrap();
 
-            //let verify(&verifying_key, &proof, &public);
-            todo!("deserealize verifying file and proof");
+            let mut vk = Vec::new();
+            vk_file.read_to_end(&mut vk).unwrap();
+            //let verifying_key = VerifyingKey::deserialize(&vk).unwrap();
+
+            //let output = verify(&verifying_key, &proof, &public);
         }
         Args { all: true, .. } => {
             let test = test_integration(u, witness, public);

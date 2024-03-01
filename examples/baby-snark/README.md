@@ -14,19 +14,19 @@ cargo run --file circuit.json --all
 ## Run SetUp
 
 ```sh
-cargo run --file circuit.json --setup
+cargo run --file circuit_name.json --setup
 ```
 
 ## Run prover
 
 ```sh
-cargo run --file circuit.json --pkf proving_key.bin --prover 
+cargo run --file circuit_name.json --pkf circuit_name.pk --prover 
 ```
 
 ## Run verifier
 
 ```sh
-cargo run --file circuit.json --vkf verifying_key.bin --verifier
+cargo run --file circuit.json --vkf circuit_name.vk --proof circuit_name.proof --verifier
 ```
 # Example
 
