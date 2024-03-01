@@ -4,7 +4,7 @@ use stark_platinum_prover::proof::options::SecurityLevel;
 use stark_platinum_prover::transcript::StoneProverTranscript;
 use stark_platinum_prover::verifier::{IsStarkVerifier, Verifier};
 
-fn verify_cairo_proof_ffi(proof_bytes: &[u8], proof_options: &ProofOptions) -> bool {
+pub fn verify_cairo_proof_ffi(proof_bytes: &[u8], proof_options: &ProofOptions) -> bool {
     let bytes = proof_bytes;
 
     // This logic is the same as main verify, with only error handling changing. In ffi, we simply return a false if the proof is invalid, instead of rising an error.
