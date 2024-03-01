@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::{io, ops::Neg};
 
+use baby_snark::ProvingKey;
 use baby_snark::{
     common::FrElement, scs::SquareConstraintSystem, setup, ssp::SquareSpanProgram, verify, Prover,
 };
@@ -16,22 +17,76 @@ use clap::Parser;
 
 #[derive(Parser, Debug)]
 struct Args {
-    #[arg(short, long)]
-    file: String,
+    #[arg(short = 'f', long = "file")]
+    matrix: String,
+    #[arg(long = "pkf")]
+    proving_file: String,
+    #[arg(long = "vkf")]
+    verifying_file: String,
+    #[arg(long = "proof")]
+    proof: String,
+    #[arg(long = "ssp", default_value_t = false)]
+    ssp: bool,
+    #[arg(long = "setup", default_value_t = false)]
+    setup: bool,
+    #[arg(long = "prover", default_value_t = false)]
+    prover: bool,
+    #[arg(long = "verifier", default_value_t = false)]
+    verifier: bool,
+    #[arg(long = "all", default_value_t = false)]
+    all: bool,
 }
 
 fn main() {
     let args = Args::parse();
-    let file = File::open(args.file).unwrap();
-    let reader = io::BufReader::new(file);
+    let program = File::open(args.matrix).unwrap();
+    let reader = io::BufReader::new(program);
 
     let sol: Solution = serde_json::from_reader(reader).unwrap();
-
     let u = i64_matrix_to_field(sol.u);
     let public = i64_vec_to_field(sol.public);
     let witness = i64_vec_to_field(sol.witness);
 
-    println!("Result: {}", test_integration(u, witness, public));
+    let mut input = public.clone();
+    input.extend(witness.clone());
+    let ssp = SquareSpanProgram::from_scs(SquareConstraintSystem::from_matrix(u, public.len()));
+
+    match args {
+        Args { setup: true, .. } => {   
+            let (proving_key, verifying_key) = setup(&ssp);
+            todo!("serealize ssp, pk, vk");
+        },
+        Args { prover: true, .. } => {
+            let pk = File::open(args.proving_file).unwrap();
+            let reader = io::BufReader::new(pk);
+        
+            let proof = Prover::prove(&input, &ssp, &proving_key);
+            todo!("deserealize proving_key and serealize proof");
+        },
+        Args { verifier: true, .. } => {
+            let proof = File::open(args.proof).unwrap();
+            let reader_proof = io::BufReader::new(proof);
+
+            let vk = File::open(args.verifying_file).unwrap();
+            let reader_vk = io::BufReader::new(proof);
+            
+            let verify(&verifying_key, &proof, &public);
+            todo!("deserealize verifying file and proof");
+        },
+        Args { all: true, .. } => {
+            let sol: Solution = serde_json::from_reader(reader).unwrap();
+            let u = i64_matrix_to_field(sol.u);
+            let public = i64_vec_to_field(sol.public);
+            let witness = i64_vec_to_field(sol.witness);
+
+            let test = test_integration(u, witness, public);
+
+            println!("test: {test}");
+        },
+        _ => {
+            println!("Try again");
+        }
+    };
 }
 
 fn test_integration(
