@@ -1,7 +1,33 @@
 # Lambdaworks Baby SNARK
 
 An implementation of [Baby SNARK](https://github.com/initc3/babySNARK/blob/bebb2948f8094a8d3949afe6d10b89a120a005be/babysnark.pdf) protocol.
+# How to Use the CLI?
 
+Simple commands: 
+
+## Run test
+
+```sh
+cargo run --file circuit.json --all 
+```
+
+## Run SetUp
+
+```sh
+cargo run --file circuit.json --setup
+```
+
+## Run prover
+
+```sh
+cargo run --file circuit.json --pkf proving_key.bin --prover 
+```
+
+## Run verifier
+
+```sh
+cargo run --file circuit.json --vkf verifying_key.bin --verifier
+```
 # Example
 
 Below is a simple example demonstrating the usage of BabySnark:

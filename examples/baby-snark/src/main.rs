@@ -17,16 +17,14 @@ use clap::Parser;
 
 #[derive(Parser, Debug)]
 struct Args {
-    #[arg(short = 'f', long = "file")]
+    #[arg(short = 'f', long = "file", required=false)]
     matrix: String,
-    #[arg(long = "pkf")]
+    #[arg(long = "pkf", required=false, default_value_t = String::from("placeholder"))]
     proving_file: String,
-    #[arg(long = "vkf")]
+    #[arg(long = "vkf", required=false, default_value_t = String::from("placeholder"))]
     verifying_file: String,
-    #[arg(long = "proof")]
+    #[arg(long = "proof", required=false, default_value_t = String::from("placeholder"))]
     proof: String,
-    #[arg(long = "ssp", default_value_t = false)]
-    ssp: bool,
     #[arg(long = "setup", default_value_t = false)]
     setup: bool,
     #[arg(long = "prover", default_value_t = false)]
@@ -49,40 +47,35 @@ fn main() {
 
     let mut input = public.clone();
     input.extend(witness.clone());
-    let ssp = SquareSpanProgram::from_scs(SquareConstraintSystem::from_matrix(u, public.len()));
+    let ssp = SquareSpanProgram::from_scs(SquareConstraintSystem::from_matrix(u.clone(), public.len()));
 
     match args {
-        Args { setup: true, .. } => {   
+        Args { setup: true, .. } => {
             let (proving_key, verifying_key) = setup(&ssp);
             todo!("serealize ssp, pk, vk");
-        },
+        }
         Args { prover: true, .. } => {
             let pk = File::open(args.proving_file).unwrap();
             let reader = io::BufReader::new(pk);
-        
-            let proof = Prover::prove(&input, &ssp, &proving_key);
+
+            //let proof = Prover::prove(&input, &ssp, &proving_key);
             todo!("deserealize proving_key and serealize proof");
-        },
+        }
         Args { verifier: true, .. } => {
             let proof = File::open(args.proof).unwrap();
             let reader_proof = io::BufReader::new(proof);
 
             let vk = File::open(args.verifying_file).unwrap();
-            let reader_vk = io::BufReader::new(proof);
-            
-            let verify(&verifying_key, &proof, &public);
-            todo!("deserealize verifying file and proof");
-        },
-        Args { all: true, .. } => {
-            let sol: Solution = serde_json::from_reader(reader).unwrap();
-            let u = i64_matrix_to_field(sol.u);
-            let public = i64_vec_to_field(sol.public);
-            let witness = i64_vec_to_field(sol.witness);
+            let reader_vk = io::BufReader::new(vk);
 
+            //let verify(&verifying_key, &proof, &public);
+            todo!("deserealize verifying file and proof");
+        }
+        Args { all: true, .. } => {
             let test = test_integration(u, witness, public);
 
             println!("test: {test}");
-        },
+        }
         _ => {
             println!("Try again");
         }
