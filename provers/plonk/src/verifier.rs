@@ -391,7 +391,19 @@ mod tests {
     fn test_serialize_proof() {
         // This is the circuit for x * e == y
         let common_preprocessed_input = test_common_preprocessed_input_1();
+
+        let circuit_bytes = bincode::serialize(&common_preprocessed_input).unwrap();
+        let mut circuit_file =
+            std::fs::File::create("circuit_srs.bin").expect("Could not create srs file");
+        circuit_file.write_all(&circuit_bytes).unwrap();
+        // let output =
+        //     bincode::deserialize::<SP1ProofWithIO<BabyBearBlake3>>(&serialized).unwrap();
+
         let srs = test_srs(common_preprocessed_input.n);
+
+        let mut srs_file =
+            std::fs::File::create("plonk_srs.bin").expect("Could not create srs file");
+        srs_file.write_all(&srs.as_bytes()).unwrap();
 
         // Public input
         let x = FieldElement::from(4_u64);

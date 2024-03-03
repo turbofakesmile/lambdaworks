@@ -11,6 +11,7 @@ use lambdaworks_math::field::traits::IsFFTField;
 use lambdaworks_math::field::{element::FieldElement, traits::IsField};
 use lambdaworks_math::polynomial::Polynomial;
 use lambdaworks_math::traits::{AsBytes, ByteConversion, Deserializable};
+use serde::{Deserialize, Serialize};
 
 // TODO: implement getters
 pub struct Witness<F: IsField> {
@@ -34,7 +35,7 @@ impl<F: IsField> Witness<F> {
 }
 
 // TODO: implement getters
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct CommonPreprocessedInput<F: IsField> {
     pub n: usize,
     /// Number of constraints

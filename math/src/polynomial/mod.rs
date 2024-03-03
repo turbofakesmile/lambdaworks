@@ -2,6 +2,7 @@ use super::field::element::FieldElement;
 use crate::field::traits::{IsField, IsSubFieldOf};
 use alloc::{borrow::ToOwned, vec, vec::Vec};
 use core::{fmt::Display, ops};
+use serde::{Deserialize, Serialize};
 
 pub mod dense_multilinear_poly;
 mod error;
@@ -9,7 +10,7 @@ pub mod sparse_multilinear_poly;
 
 /// Represents the polynomial c_0 + c_1 * X + c_2 * X^2 + ... + c_n * X^n
 /// as a vector of coefficients `[c_0, c_1, ... , c_n]`
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Polynomial<FE> {
     pub coefficients: Vec<FE>,
 }
