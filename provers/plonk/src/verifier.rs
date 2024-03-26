@@ -197,7 +197,15 @@ impl<F: IsField + IsFFTField, CS: IsCommitmentScheme<F>> Verifier<F, CS> {
 mod tests {
     use std::io::Write;
 
-    use lambdaworks_math::traits::Deserializable;
+    use lambdaworks_math::{
+        elliptic_curve::{
+            short_weierstrass::curves::bls12_381::{
+                curve::BLS12381Curve, pairing::BLS12381AtePairing, twist::BLS12381TwistCurve,
+            },
+            traits::{IsEllipticCurve, IsPairing},
+        },
+        traits::Deserializable,
+    };
 
     use super::*;
 
@@ -437,5 +445,28 @@ mod tests {
             &common_preprocessed_input,
             &verifying_key
         ));
+    }
+
+    #[test]
+    fn verify_pairing_test() {
+        let p = BLS12381Curve::generator();
+        let q = BLS12381TwistCurve::generator();
+
+        let result = BLS12381AtePairing::compute_batch(&[
+            (
+                &p,
+                &q, // &p.operate_with_self(a).to_affine(),
+                   // &q.operate_with_self(b).to_affine(),
+            ),
+            (
+                // &p.operate_with_self(a * b).to_affine(),
+                // &q.neg().to_affine(),
+                &p,
+                &q.neg(),
+            ),
+        ])
+        .unwrap();
+
+        assert_eq!(result, FieldElement::one())
     }
 }
