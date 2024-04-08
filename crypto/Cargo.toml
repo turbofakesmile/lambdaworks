@@ -5,6 +5,11 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+
+[[bin]]
+name = "poseidon-constant-generator"
+path = "src/hash/poseidon/optimized_constant_generator.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
