@@ -1,5 +1,3 @@
-use std::os::macos::raw::stat;
-
 use alloc::{borrow::ToOwned, vec::Vec};
 use lambdaworks_math::field::element::FieldElement as FE;
 
