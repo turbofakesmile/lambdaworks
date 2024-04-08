@@ -55,3 +55,7 @@ harness = false
 [[bench]]
 name = "poseidon"
 harness = false
+
+[[bench]]
+name = "double"
+harness = false
