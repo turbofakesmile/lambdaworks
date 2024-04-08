@@ -1,13 +1,13 @@
-use std::{ops::Add, time::Duration};
-
+use ark_ff::AdditiveGroup;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use std::{ops::Add, time::Duration};
 use utils::generate_random_elements;
 
 use crate::utils::to_lambdaworks_vec;
 
 pub mod utils;
 
-const BENCHMARK_NAME: &str = "add";
+const BENCHMARK_NAME: &str = "double";
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     let arkworks_vec = generate_random_elements(2000000);
@@ -21,8 +21,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     let mut iter = arkworks_vec.iter();
                     for _i in 0..1000000 {
                         let a = iter.next().unwrap();
-                        let b = iter.next().unwrap();
-                        black_box(black_box(&a).add(black_box(b)));
+                        black_box(black_box(&a).double());
                     }
                 });
             },
@@ -41,8 +40,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
                     for _i in 0..1000000 {
                         let a = iter.next().unwrap();
-                        let b = iter.next().unwrap();
-                        black_box(black_box(&a).add(black_box(b)));
+                        black_box(black_box(&a).double());
                     }
                 });
             },
