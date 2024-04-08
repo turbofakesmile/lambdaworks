@@ -1,3 +1,5 @@
+use std::os::macos::raw::stat;
+
 use alloc::{borrow::ToOwned, vec::Vec};
 use lambdaworks_math::field::element::FieldElement as FE;
 
@@ -16,7 +18,7 @@ mod private {
 
 pub trait Poseidon: PermutationParameters + self::private::Sealed {
     fn hades_permutation(state: &mut [FE<Self::F>]);
-    fn full_round(state: &mut [FE<Self::F>], rindex: usize);
+    fn full_round(state: &mut [FE<Self::F>], index: usize);
     fn partial_round(state: &mut [FE<Self::F>], index: usize);
     fn hash(x: &FE<Self::F>, y: &FE<Self::F>) -> FE<Self::F>;
     fn hash_single(x: &FE<Self::F>) -> FE<Self::F>;
