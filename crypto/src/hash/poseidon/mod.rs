@@ -51,8 +51,10 @@ impl<P: PermutationParameters> Poseidon for P {
 
     #[inline]
     fn partial_round(state: &mut [FE<Self::F>], index: usize) {
-        state[2] = &state[2] + &P::ROUND_CONSTANTS[index];
-        state[2] = &state[2].square() * &state[2];
+        state[P::N_ROUND_CONSTANTS_COLS - 1] =
+            &state[P::N_ROUND_CONSTANTS_COLS - 1] + &P::ROUND_CONSTANTS[index];
+        state[P::N_ROUND_CONSTANTS_COLS - 1] =
+            &state[P::N_ROUND_CONSTANTS_COLS - 1].square() * &state[P::N_ROUND_CONSTANTS_COLS - 1];
         Self::mix(state);
     }
 
