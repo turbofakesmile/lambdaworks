@@ -22,8 +22,9 @@ pub trait PermutationParameters {
     const N_MDS_MATRIX_ROWS: usize;
     const N_MDS_MATRIX_COLS: usize;
 
-    /// Add Round Constants optimized using  Appendix B specification of  Poseidon paper (available at https://eprint.iacr.org/2019/458.pdf). 
+    /// Add Round Constants optimized using the first part of Appendix B specification of  Poseidon paper (available at https://eprint.iacr.org/2019/458.pdf).
     /// If you have the non optimized ones, edit the file in ```poseidon/optimized_constant_generator.rs```, run ```cargo run --bin poseidon-constant-generator``` in the crypto package. This will generate a file opt_constants.txt which you can copy and paste in your PermutationParameters
+    /// Note that the matrix optimization described in Appendix B is not implemented.
     const ROUND_CONSTANTS: &'static [FE<Self::F>];
     const N_ROUND_CONSTANTS_ROWS: usize;
     const N_ROUND_CONSTANTS_COLS: usize;
