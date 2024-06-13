@@ -10,10 +10,17 @@ use sha3::{digest::XofReader, Shake128Reader};
 pub type F = Mersenne31Field;
 
 pub fn random_matrix(shake: &mut Shake128Reader, n: usize, m: usize) -> Vec<Vec<u32>> {
-    (0..n)
-        .map(|_| (0..m).map(|_| random_field_element(shake)).collect())
-        .collect()
+    let mut matrix = Vec::with_capacity(n);
+    for _ in 0..n {
+        let mut rowG = Vec::with_capacity(m);
+        for _ in m {
+            rowG.push(random_field_element(shake));
+        }
+        matrix.push(rowG);
+    }
+    matrix
 }
+  
 
 fn random_field_element(shake: &mut Shake128Reader) -> u32 {
     let mut val = shake_random_u32(shake);
